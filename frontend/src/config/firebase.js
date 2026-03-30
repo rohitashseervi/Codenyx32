@@ -1,22 +1,23 @@
-import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDxxxxxxxxxxxxxxxxxxx',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gapzero.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'gapzero-project',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gapzero-project.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789:web:abc123def456',
-}
+  apiKey: "AIzaSyBu-te8amA5gTTPYCZr3iR2xUm8XXP-QIU",
+  authDomain: "gapzero-ab712.firebaseapp.com",
+  projectId: "gapzero-ab712",
+  storageBucket: "gapzero-ab712.firebasestorage.app",
+  messagingSenderId: "645254405300",
+  appId: "1:645254405300:web:fd1e733879f8a3509c0be1",
+  measurementId: "G-8XJVKFDSS7",
+};
 
-const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const googleProvider = new GoogleAuthProvider()
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
 // Configure Google provider
 googleProvider.setCustomParameters({
-  prompt: 'select_account',
-})
+  prompt: "select_account",
+});
 
-export default app
+export default app;
