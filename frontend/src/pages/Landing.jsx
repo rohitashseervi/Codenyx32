@@ -180,7 +180,7 @@ const Landing = () => {
             {
               title: 'For NGOs',
               description: 'Manage student enrollment, track progress, and connect with mentors',
-              color: 'ngo',
+              color: 'ngo_admin',
               cta: 'Start as NGO',
             },
             {

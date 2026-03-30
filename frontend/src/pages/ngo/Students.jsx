@@ -243,7 +243,7 @@ const Students = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
-                          to={`/ngo/students/${student.id}`}
+                          to={`/ngo_admin/students/${student.id}`}
                           className="text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
                         >
                           <span className="text-sm font-medium">View</span>

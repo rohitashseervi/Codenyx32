@@ -219,7 +219,7 @@ const NGODashboard = () => {
                         <p className="text-sm text-gray-600">Grade {student.grade} - {student.masteryScore}% mastery</p>
                       </div>
                       <Link
-                        to={`/ngo/students/${student.id}`}
+                        to={`/ngo_admin/students/${student.id}`}
                         className="text-red-600 hover:text-red-700 text-sm font-medium"
                       >
                         View
@@ -233,7 +233,7 @@ const NGODashboard = () => {
             </div>
             {atRisk && atRisk.length > 5 && (
               <Link
-                to="/ngo/students"
+                to="/ngo_admin/students"
                 className="text-primary-600 hover:text-primary-700 text-sm font-medium block mt-3"
               >
                 View all at-risk students
@@ -284,21 +284,21 @@ const NGODashboard = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Link
-              to="/ngo/students"
+              to="/ngo_admin/students"
               className="flex items-center justify-center gap-2 p-4 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg transition-colors"
             >
               <Plus className="w-5 h-5" />
               <span className="font-medium">Add Student</span>
             </Link>
             <Link
-              to="/ngo/reports"
+              to="/ngo_admin/reports"
               className="flex items-center justify-center gap-2 p-4 bg-accent-50 hover:bg-accent-100 text-accent-600 rounded-lg transition-colors"
             >
               <FileText className="w-5 h-5" />
               <span className="font-medium">View Reports</span>
             </Link>
             <Link
-              to="/ngo/volunteers"
+              to="/ngo_admin/volunteers"
               className="flex items-center justify-center gap-2 p-4 bg-secondary-50 hover:bg-secondary-100 text-secondary-600 rounded-lg transition-colors"
             >
               <Users2 className="w-5 h-5" />

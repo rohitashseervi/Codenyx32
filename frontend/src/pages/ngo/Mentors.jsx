@@ -330,7 +330,7 @@ const Mentors = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-gray-900">{mentor.joinedDate}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
-                          to={`/ngo/mentors/${mentor.id}`}
+                          to={`/ngo_admin/mentors/${mentor.id}`}
                           className="text-primary-600 hover:text-primary-700 font-medium text-sm"
                         >
                           View

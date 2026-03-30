@@ -52,7 +52,7 @@ const dashboardRoutes = require('./routes/dashboard');
 
 // Register routes
 app.use('/api/auth', authRoutes);
-app.use('/api/ngo', ngoRoutes);
+app.use('/api/ngo_admin', ngoRoutes);
 app.use('/api/volunteer', volunteerRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/student', studentRoutes);

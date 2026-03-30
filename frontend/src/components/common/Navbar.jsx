@@ -17,7 +17,7 @@ const Navbar = ({ onMenuToggle }) => {
 
   const getRoleLabel = (r) => {
     const labels = {
-      ngo: 'NGO Admin',
+      ngo_admin: 'NGO Admin',
       volunteer: 'Volunteer',
       mentor: 'Mentor',
       student: 'Student',
@@ -27,7 +27,7 @@ const Navbar = ({ onMenuToggle }) => {
 
   const getRoleDashboardPath = () => {
     const paths = {
-      ngo: '/ngo/dashboard',
+      ngo_admin: '/ngo_admin/dashboard',
       volunteer: '/volunteer/dashboard',
       mentor: '/mentor/dashboard',
       student: '/student/dashboard',
@@ -39,12 +39,12 @@ const Navbar = ({ onMenuToggle }) => {
     if (!role) return []
 
     const links = {
-      ngo: [
-        { label: 'Dashboard', href: '/ngo/dashboard' },
-        { label: 'Students', href: '/ngo/students' },
-        { label: 'Volunteers', href: '/ngo/volunteers' },
-        { label: 'Mentors', href: '/ngo/mentors' },
-        { label: 'Reports', href: '/ngo/reports' },
+      ngo_admin: [
+        { label: 'Dashboard', href: '/ngo_admin/dashboard' },
+        { label: 'Students', href: '/ngo_admin/students' },
+        { label: 'Volunteers', href: '/ngo_admin/volunteers' },
+        { label: 'Mentors', href: '/ngo_admin/mentors' },
+        { label: 'Reports', href: '/ngo_admin/reports' },
       ],
       volunteer: [
         { label: 'Dashboard', href: '/volunteer/dashboard' },

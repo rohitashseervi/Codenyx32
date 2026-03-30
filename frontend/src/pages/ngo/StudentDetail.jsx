@@ -94,7 +94,7 @@ const StudentDetail = () => {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-6xl mx-auto">
           <button
-            onClick={() => navigate('/ngo/students')}
+            onClick={() => navigate('/ngo_admin/students')}
             className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-6"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -132,7 +132,7 @@ const StudentDetail = () => {
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <button
-          onClick={() => navigate('/ngo/students')}
+          onClick={() => navigate('/ngo_admin/students')}
           className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-6"
         >
           <ArrowLeft className="w-5 h-5" />

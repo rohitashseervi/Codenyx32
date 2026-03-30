@@ -72,7 +72,7 @@ export default {
           800: '#c9402f',
           900: '#ab3424',
         },
-        ngo: {
+        ngo_admin: {
           50: '#faf5ff',
           100: '#f3e8ff',
           200: '#e9d5ff',

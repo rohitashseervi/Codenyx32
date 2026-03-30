@@ -91,9 +91,9 @@ function App() {
 
         {/* NGO Admin Routes */}
         <Route
-          path="/ngo/*"
+          path="/ngo_admin/*"
           element={
-            <ProtectedRoute requiredRole="ngo">
+            <ProtectedRoute requiredRole="ngo_admin">
               <Routes>
                 <Route path="dashboard" element={<NGODashboard />} />
                 <Route path="students" element={<Students />} />
@@ -102,7 +102,7 @@ function App() {
                 <Route path="mentors" element={<Mentors />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/ngo/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/ngo_admin/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
           }

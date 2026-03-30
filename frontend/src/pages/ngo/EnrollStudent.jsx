@@ -30,7 +30,7 @@ export default function EnrollStudent() {
 
   const fetchClassGroups = async () => {
     try {
-      const res = await api.get('/ngo/class-groups');
+      const res = await api.get('/ngo_admin/class-groups');
       setClassGroups(res.data || []);
     } catch (err) {
       // Use empty array if no groups exist yet
@@ -72,14 +72,14 @@ export default function EnrollStudent() {
         takeBaseline: form.takeBaseline
       };
 
-      await api.post('/ngo/students', payload);
+      await api.post('/ngo_admin/students', payload);
       toast.success(`${form.name} enrolled successfully!`);
 
       if (form.takeBaseline) {
         toast('Baseline assessment will be sent to student', { icon: '📝' });
       }
 
-      navigate('/ngo/students');
+      navigate('/ngo_admin/students');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to enroll student');
     } finally {
@@ -92,7 +92,7 @@ export default function EnrollStudent() {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => navigate('/ngo/students')}
+          onClick={() => navigate('/ngo_admin/students')}
           className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-4 text-sm"
         >
           <ArrowLeft size={16} /> Back to Students
@@ -297,7 +297,7 @@ export default function EnrollStudent() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => navigate('/ngo/students')}
+            onClick={() => navigate('/ngo_admin/students')}
             className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
           >
             Cancel

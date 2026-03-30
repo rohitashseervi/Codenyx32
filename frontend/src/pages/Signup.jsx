@@ -1,28 +1,47 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import { ArrowRight, ArrowLeft, Check } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Chrome, LogOut } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const Signup = () => {
   const navigate = useNavigate()
-  const { user, setRole, setProfile, refreshProfile } = useAuth()
+  const { user, setRole, setProfile, loginWithGoogle, logout } = useAuth()
   const [step, setStep] = useState(1)
   const [selectedRole, setSelectedRole] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [formData, setFormData] = useState({})
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/login', { replace: true })
+ 
+  React.useEffect(() => {
+    if (user && step === 2) {
+      setFormData(prev => ({
+        ...prev,
+        email: prev.email || user.email || '',
+        name: prev.name || user.displayName || ''
+      }));
     }
-  }, [user, navigate])
+  }, [user, step]);
+
+  const handleGoogleSignUp = async () => {
+    try {
+      setGoogleLoading(true)
+      await loginWithGoogle()
+      // loginWithGoogle sets the user in context; the page will re-render
+      // and show the role selection step automatically
+    } catch (error) {
+      console.error('Google sign-up failed:', error)
+      toast.error('Google sign-up failed. Please try again.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
 
   const roles = [
     {
-      id: 'ngo',
+      id: 'ngo_admin',
       name: 'NGO Admin',
       description: 'Manage students, volunteers, and track educational outcomes',
       icon: '🏢',
@@ -55,11 +74,11 @@ const Signup = () => {
   const getRoleFormFields = () => {
     const baseFields = [
       { name: 'name', label: 'Full Name', type: 'text', required: true },
-      { name: 'email', label: 'Email', type: 'email', required: false, disabled: true },
+      { name: 'email', label: 'Email Address', type: 'email', required: true },
     ]
 
     const roleSpecificFields = {
-      ngo: [
+      ngo_admin: [
         { name: 'organizationName', label: 'Organization Name', type: 'text', required: true },
         { name: 'registrationNumber', label: 'Registration/License Number', type: 'text', required: true },
         { name: 'location', label: 'Location/City', type: 'text', required: true },
@@ -113,30 +132,27 @@ const Signup = () => {
       setLoading(true)
 
       const payload = {
-        email: user.email,
-        firebaseUid: user.uid,
+        uid: user.uid,
+        email: formData.email || user.email,
+        displayName: formData.name || user.displayName,
         role: selectedRole,
-        profile: {
+        profileData: {
           name: formData.name || user.displayName,
           ...formData,
         },
       }
 
-      const response = await api.auth.register(payload)
-
-      // Update auth context
-      setRole(selectedRole)
-      setProfile(response.data.profile)
-
+      await api.auth.register(payload)
+      const response = await api.auth.getMe()
+      const { user: backendUser } = response.data
+      setProfile(backendUser?.profile || null)
+      setRole(backendUser?.role || null)
       toast.success('Account created successfully!')
       navigate(`/${selectedRole}/dashboard`, { replace: true })
     } catch (error) {
       console.error('Signup error:', error)
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message)
-      } else {
-        toast.error('Failed to create account. Please try again.')
-      }
+      const message = error.response?.data?.message || error.response?.data?.error || 'Failed to create account. Please try again.'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -155,23 +171,55 @@ const Signup = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h1>
-          <p className="text-gray-600">Step {step} of 3 - Choose your role</p>
+          <p className="text-gray-600">
+            {!user ? 'Sign up to get started' : `Step ${step} of 2 - ${step === 1 ? 'Choose your role' : 'Fill in your details'}`}
+          </p>
         </div>
 
-        {/* Progress bar */}
-        <div className="flex gap-2 mb-8">
-          {[1, 2, 3].map((s) => (
-            <div
-              key={s}
-              className={`flex-1 h-2 rounded-full transition-all ${
-                s <= step ? 'bg-primary-600' : 'bg-gray-300'
-              }`}
-            ></div>
-          ))}
-        </div>
+        {/* Progress bar - only shown after Google sign-in */}
+        {user && (
+          <div className="flex gap-2 mb-8">
+            {[1, 2].map((s) => (
+              <div
+                key={s}
+                className={`flex-1 h-2 rounded-full transition-all ${
+                  s <= step ? 'bg-primary-600' : 'bg-gray-300'
+                }`}
+              ></div>
+            ))}
+          </div>
+        )}
+
+        {/* Step 0: Google Sign-Up (shown when not authenticated) */}
+        {!user && (
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <button
+              onClick={handleGoogleSignUp}
+              disabled={googleLoading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 hover:border-primary-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-gray-700 text-lg mb-6"
+            >
+              <Chrome className="w-6 h-6 text-blue-600" />
+              {googleLoading ? 'Signing in...' : 'Sign up with Google'}
+            </button>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-400">Already have an account?</span>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-medium py-2"
+            >
+              Sign in instead
+            </button>
+          </div>
+        )}
 
         {/* Step 1: Select Role */}
-        {step === 1 && (
+        {user && step === 1 && (
           <div className="space-y-4">
             {roles.map((role) => (
               <button
@@ -195,12 +243,22 @@ const Signup = () => {
         )}
 
         {/* Step 2: Fill Details */}
-        {step === 2 && (
+        {user && step === 2 && (
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-              {roles.find((r) => r.id === selectedRole)?.name} Details
-            </h2>
-
+            {/* Header info */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900">
+                {roles.find((r) => r.id === selectedRole)?.name} Details
+              </h2>
+              <button
+                type="button"
+                onClick={async () => { await logout(); navigate('/signup'); }}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 font-medium transition-colors"
+              >
+                <LogOut className="w-3 h-3" />
+                Switch account
+              </button>
+            </div>
             <div className="space-y-4 mb-6">
               {fields.map((field) => (
                 <div key={field.name}>

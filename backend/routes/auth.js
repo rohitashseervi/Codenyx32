@@ -33,24 +33,38 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ uid: uid });
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        error: 'User already exists'
-      });
+    let user = await User.findOne({ uid: uid });
+    let isExistingUser = false;
+
+    if (user) {
+      // Check if they already have a role-specific profile
+      let existingProfile = null;
+      switch (user.role) {
+        case 'student': existingProfile = await Student.findOne({ userId: user._id }); break;
+        case 'volunteer': existingProfile = await Volunteer.findOne({ userId: user._id }); break;
+        case 'mentor': existingProfile = await Mentor.findOne({ userId: user._id }); break;
+        case 'ngo_admin': existingProfile = await NGOAdmin.findOne({ userId: user._id }); break;
+      }
+      if (existingProfile) {
+        return res.status(409).json({ success: false, error: 'User already registered with a profile.' });
+      }
+      // User exists but has no profile — allow re-registration (update role)
+      user.role = role;
+      user.displayName = displayName || user.displayName;
+      await user.save();
+      isExistingUser = true;
     }
 
-    // Create base user document
-    const user = new User({
-      uid: uid,
-      email: email,
-      displayName: displayName || email.split('@')[0],
-      role: role,
-      createdAt: new Date()
-    });
-
-    await user.save();
+    // Create base user document if new
+    if (!isExistingUser) {
+      user = new User({
+        uid, email,
+        displayName: displayName || email.split('@')[0],
+        role,
+        createdAt: new Date()
+      });
+      await user.save();
+    }
 
     // Create role-specific profile
     let profile = null;
@@ -165,19 +179,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find or create user
+    // Find user - do NOT auto-create; new users must go through /register
     let user = await User.findOne({ uid: decodedToken.uid });
 
     if (!user) {
-      // Create user if doesn't exist
-      user = new User({
-        uid: decodedToken.uid,
-        email: decodedToken.email,
-        displayName: decodedToken.name || decodedToken.email.split('@')[0],
-        role: 'student', // Default role
-        createdAt: new Date()
+      return res.status(404).json({
+        success: false,
+        error: 'User not found. Please register first.'
       });
-      await user.save();
     }
 
     // Fetch role-specific profile

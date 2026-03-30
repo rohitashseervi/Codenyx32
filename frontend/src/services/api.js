@@ -67,26 +67,26 @@ const authAPI = {
 
 // NGO endpoints
 const ngoAPI = {
-  create: (data) => axiosInstance.post('/ngo/register', data),
-  get: (ngoId) => axiosInstance.get(`/ngo/${ngoId}`),
-  update: (ngoId, data) => axiosInstance.put(`/ngo/${ngoId}`, data),
-  list: (params) => axiosInstance.get('/ngo', { params }),
-  getDashboard: (ngoId) => axiosInstance.get(`/ngo/${ngoId}/dashboard`),
-  getStudents: (ngoId, params) => axiosInstance.get(`/ngo/${ngoId}/students`, { params }),
-  getVolunteers: (ngoId, params) => axiosInstance.get(`/ngo/${ngoId}/volunteers`, { params }),
-  getMentors: (ngoId, params) => axiosInstance.get(`/ngo/${ngoId}/mentors`, { params }),
-  enrollStudent: (ngoId, data) => axiosInstance.post(`/ngo/${ngoId}/students/enroll`, data),
-  bulkEnroll: (ngoId, data) => axiosInstance.post(`/ngo/${ngoId}/students/bulk-enroll`, data),
-  approve: (ngoId, userId) => axiosInstance.post(`/ngo/${ngoId}/approve/${userId}`),
-  reject: (ngoId, userId) => axiosInstance.post(`/ngo/${ngoId}/reject/${userId}`),
+  create: (data) => axiosInstance.post('/ngo_admin/register', data),
+  get: (ngoId) => axiosInstance.get(`/ngo_admin/${ngoId}`),
+  update: (ngoId, data) => axiosInstance.put(`/ngo_admin/${ngoId}`, data),
+  list: (params) => axiosInstance.get('/ngo_admin', { params }),
+  getDashboard: (ngoId) => axiosInstance.get(`/ngo_admin/${ngoId}/dashboard`),
+  getStudents: (ngoId, params) => axiosInstance.get(`/ngo_admin/${ngoId}/students`, { params }),
+  getVolunteers: (ngoId, params) => axiosInstance.get(`/ngo_admin/${ngoId}/volunteers`, { params }),
+  getMentors: (ngoId, params) => axiosInstance.get(`/ngo_admin/${ngoId}/mentors`, { params }),
+  enrollStudent: (ngoId, data) => axiosInstance.post(`/ngo_admin/${ngoId}/students/enroll`, data),
+  bulkEnroll: (ngoId, data) => axiosInstance.post(`/ngo_admin/${ngoId}/students/bulk-enroll`, data),
+  approve: (ngoId, userId) => axiosInstance.post(`/ngo_admin/${ngoId}/approve/${userId}`),
+  reject: (ngoId, userId) => axiosInstance.post(`/ngo_admin/${ngoId}/reject/${userId}`),
 }
 
 // Volunteer endpoints
 const volunteerAPI = {
   register: (data) => axiosInstance.post('/volunteer/register', data),
   updateProfile: (data) => axiosInstance.put('/volunteer/profile', data),
-  browseNGOs: (params) => axiosInstance.get('/volunteer/ngo/browse', { params }),
-  joinNGO: (ngoId) => axiosInstance.post(`/volunteer/ngo/${ngoId}/join`),
+  browseNGOs: (params) => axiosInstance.get('/volunteer/ngo_admin/browse', { params }),
+  joinNGO: (ngoId) => axiosInstance.post(`/volunteer/ngo_admin/${ngoId}/join`),
   getLearningPath: () => axiosInstance.get('/volunteer/learning-path'),
   getSessions: (params) => axiosInstance.get('/volunteer/sessions', { params }),
   startSession: (sessionId) => axiosInstance.post(`/volunteer/sessions/${sessionId}/start`),
@@ -100,8 +100,8 @@ const volunteerAPI = {
 const mentorAPI = {
   register: (data) => axiosInstance.post('/mentor/register', data),
   updateProfile: (data) => axiosInstance.put('/mentor/profile', data),
-  browseNGOs: (params) => axiosInstance.get('/mentor/ngo/browse', { params }),
-  joinNGO: (ngoId) => axiosInstance.post(`/mentor/ngo/${ngoId}/join`),
+  browseNGOs: (params) => axiosInstance.get('/mentor/ngo_admin/browse', { params }),
+  joinNGO: (ngoId) => axiosInstance.post(`/mentor/ngo_admin/${ngoId}/join`),
   getStudents: (params) => axiosInstance.get('/mentor/students', { params }),
   getStudentProgress: (studentId) => axiosInstance.get(`/mentor/students/${studentId}/progress`),
   scheduleMeet: (data) => axiosInstance.post('/mentor/schedule-meet', data),

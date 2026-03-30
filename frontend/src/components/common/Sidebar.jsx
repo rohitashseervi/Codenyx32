@@ -28,11 +28,11 @@ const Sidebar = ({ isOpen, onClose }) => {
     ]
 
     const roleItems = {
-      ngo: [
-        { label: 'Students', href: '/ngo/students', icon: Users },
-        { label: 'Volunteers', href: '/ngo/volunteers', icon: Zap },
-        { label: 'Mentors', href: '/ngo/mentors', icon: Users },
-        { label: 'Reports', href: '/ngo/reports', icon: FileText },
+      ngo_admin: [
+        { label: 'Students', href: '/ngo_admin/students', icon: Users },
+        { label: 'Volunteers', href: '/ngo_admin/volunteers', icon: Zap },
+        { label: 'Mentors', href: '/ngo_admin/mentors', icon: Users },
+        { label: 'Reports', href: '/ngo_admin/reports', icon: FileText },
       ],
       volunteer: [
         { label: 'My Sessions', href: '/volunteer/sessions', icon: BookOpen },

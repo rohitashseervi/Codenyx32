@@ -87,10 +87,10 @@ router.put('/profile', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/mentor/ngos
+ * GET /api/mentor/ngo_admin/browse
  * Browse available NGOs
  */
-router.get('/ngos', authenticate, async (req, res) => {
+router.get('/ngo_admin/browse', authenticate, async (req, res) => {
   try {
     const ngos = await NGO.find().select('-admins').sort({ createdAt: -1 });
 
@@ -109,10 +109,10 @@ router.get('/ngos', authenticate, async (req, res) => {
 });
 
 /**
- * POST /api/mentor/join/:ngoId
+ * POST /api/mentor/ngo_admin/:ngoId/join
  * Request to join an NGO
  */
-router.post('/join/:ngoId', authenticate, async (req, res) => {
+router.post('/ngo_admin/:ngoId/join', authenticate, async (req, res) => {
   try {
     const ngo = await NGO.findById(req.params.ngoId);
     if (!ngo) {

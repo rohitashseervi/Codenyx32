@@ -17,8 +17,9 @@ export const AuthProvider = ({ children }) => {
   const refreshProfile = useCallback(async () => {
     try {
       const response = await api.auth.getMe()
-      setProfile(response.data.profile || response.data)
-      setRole(response.data.role || response.data.profile?.role)
+      const { user: backendUser } = response.data
+      setProfile(backendUser?.profile || null)
+      setRole(backendUser?.role || null)
       return response.data
     } catch (error) {
       console.error('Failed to refresh profile:', error)
@@ -37,12 +38,13 @@ export const AuthProvider = ({ children }) => {
       try {
         // Try to verify token with backend and get user profile
         const response = await api.auth.login({ token })
-        setProfile(response.data.profile || response.data)
-        setRole(response.data.role || response.data.profile?.role)
+        const { user: backendUser } = response.data
+        setProfile(backendUser?.profile || null)
+        setRole(backendUser?.role || null)
         setUser(user)
         setIsAuthenticated(true)
         toast.success('Logged in successfully!')
-        return { user, role: response.data.role || response.data.profile?.role, isNewUser: false }
+        return { user, role: backendUser?.role, isNewUser: false }
       } catch (error) {
         // User doesn't exist in backend yet
         if (error.response?.status === 404) {
@@ -89,8 +91,9 @@ export const AuthProvider = ({ children }) => {
           // Try to fetch user profile from backend
           try {
             const response = await api.auth.getMe()
-            setProfile(response.data.profile || response.data)
-            setRole(response.data.role || response.data.profile?.role)
+            const { user: backendUser } = response.data
+            setProfile(backendUser?.profile || null)
+            setRole(backendUser?.role || null)
             setIsAuthenticated(true)
           } catch (error) {
             // User exists in Firebase but not in backend

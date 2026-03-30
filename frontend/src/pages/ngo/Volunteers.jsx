@@ -315,7 +315,7 @@ const Volunteers = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-gray-900">{volunteer.joinedDate}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
-                          to={`/ngo/volunteers/${volunteer.id}`}
+                          to={`/ngo_admin/volunteers/${volunteer.id}`}
                           className="text-primary-600 hover:text-primary-700 font-medium text-sm"
                         >
                           View
