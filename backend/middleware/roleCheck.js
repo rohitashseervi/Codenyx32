@@ -21,7 +21,7 @@ const requireRole = (allowedRoles) => {
       const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
 
       if (!rolesArray.includes(req.user.role)) {
-        logger.warn(`Unauthorized access attempt: User ${req.user._id} with role ${req.user.role} tried to access ${req.originalUrl}`);
+        logger.warn(`Unauthorized access attempt: User ${req.user.userId} with role ${req.user.role} tried to access ${req.originalUrl}`);
 
         return res.status(403).json({
           success: false,
@@ -89,7 +89,7 @@ const canManageNGO = (req, res, next) => {
     // NGO admins can only manage their own NGO
     if (req.user.role === ROLES.NGO_ADMIN) {
       if (req.user.ngoId?.toString() !== ngoId.toString()) {
-        logger.warn(`Unauthorized NGO access attempt: User ${req.user._id} tried to access NGO ${ngoId}`);
+        logger.warn(`Unauthorized NGO access attempt: User ${req.user.userId} tried to access NGO ${ngoId}`);
 
         return res.status(403).json({
           success: false,

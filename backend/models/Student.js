@@ -6,11 +6,13 @@ const StudentSchema = new mongoose.Schema({
     ref: 'User'
   },
   email: String,
-  name: String,
-  grade: String,
+  name: { type: String, required: true },
+  grade: { type: Number, required: true, min: 1, max: 5 },
+  school: String,
   ngoId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'NGO'
+    ref: 'NGO',
+    required: true
   },
   classGroupId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -20,46 +22,57 @@ const StudentSchema = new mongoose.Schema({
     type: String,
     default: 'English'
   },
+  guardianPhone: String,
+  guardianEmail: String,
   weakAreas: [String],
-  baseline: mongoose.Schema.Types.Mixed,
+  baselineScores: mongoose.Schema.Types.Mixed,
   currentMentorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Mentor'
   },
   assessmentHistory: [{
-    assessmentId: mongoose.Schema.Types.ObjectId,
+    assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Assessment' },
     subject: String,
     topic: String,
     score: Number,
-    date: Date
+    masteryLevel: { type: String, enum: ['needs_help', 'developing', 'mastered'] },
+    date: { type: Date, default: Date.now }
   }],
   matchHistory: [{
-    mentorId: mongoose.Schema.Types.ObjectId,
+    mentorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Mentor' },
     matchedAt: Date,
-    matchScore: Number
+    endedAt: Date,
+    matchScore: Number,
+    reason: String
   }],
   activityLog: [{
-    type: String,
-    date: Date,
+    action: String,
+    date: { type: Date, default: Date.now },
     details: mongoose.Schema.Types.Mixed
   }],
   badges: [{
-    badgeId: String,
+    badgeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Badge' },
     name: String,
-    description: String,
-    icon: String,
-    rarity: String,
-    earnedAt: Date
+    earnedAt: { type: Date, default: Date.now }
   }],
-  currentStreak: {
+  consistencyStreak: {
     type: Number,
     default: 0
   },
-  learningNeed: String,
+  lastActiveDate: Date,
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'graduated'],
+    default: 'active'
+  },
   enrolledAt: {
     type: Date,
     default: Date.now
   }
 });
+
+StudentSchema.index({ ngoId: 1, grade: 1 });
+StudentSchema.index({ currentMentorId: 1 });
+StudentSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Student', StudentSchema);

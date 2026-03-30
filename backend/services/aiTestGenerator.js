@@ -1,9 +1,20 @@
-const OpenAI = require('openai');
 const Assessment = require('../models/Assessment');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// Lazy-load OpenAI only when API key is available
+let openai = null;
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) return null;
+  if (!openai) {
+    try {
+      const OpenAI = require('openai');
+      openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    } catch (err) {
+      console.warn('OpenAI module not available, using fallback question bank');
+      return null;
+    }
+  }
+  return openai;
+}
 
 // Pre-built fallback question bank
 const questionBank = {
@@ -158,8 +169,14 @@ Format your response as a JSON array with this structure:
 
 Return ONLY the JSON array, no other text.`;
 
+    const client = getOpenAIClient();
+    if (!client) {
+      console.log('No OpenAI API key configured, using fallback question bank');
+      return fallbackToQuestionBank(topic, subject, difficulty, numQuestions);
+    }
+
     try {
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           {

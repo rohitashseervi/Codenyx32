@@ -18,7 +18,16 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && role !== requiredRole) {
+  // Support role aliases: 'ngo' matches 'ngo_admin', etc.
+  const roleMatches = (required, actual) => {
+    if (!required) return true;
+    if (required === actual) return true;
+    if (required === 'ngo' && actual === 'ngo_admin') return true;
+    if (required === 'ngo_admin' && actual === 'ngo') return true;
+    return false;
+  };
+
+  if (requiredRole && !roleMatches(requiredRole, role)) {
     return <Navigate to="/" replace />
   }
 

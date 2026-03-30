@@ -5,7 +5,7 @@ import Layout from './components/common/Layout'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import LoadingSpinner from './components/common/LoadingSpinner'
 
-// Pages
+// Public Pages
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -14,10 +14,21 @@ import Signup from './pages/Signup'
 import NGODashboard from './pages/ngo/Dashboard'
 import Students from './pages/ngo/Students'
 import StudentDetail from './pages/ngo/StudentDetail'
+import EnrollStudent from './pages/ngo/EnrollStudent'
 import Volunteers from './pages/ngo/Volunteers'
 import Mentors from './pages/ngo/Mentors'
 import Reports from './pages/ngo/Reports'
 import Settings from './pages/ngo/Settings'
+
+// Volunteer Pages
+import VolunteerDashboard from './pages/volunteer/Dashboard'
+import VolunteerSessions from './pages/volunteer/Sessions'
+import VolunteerLearningPath from './pages/volunteer/LearningPath'
+import VolunteerCreateTest from './pages/volunteer/CreateTest'
+import VolunteerTestResults from './pages/volunteer/TestResults'
+import VolunteerMyStudents from './pages/volunteer/MyStudents'
+import VolunteerBrowseNGOs from './pages/volunteer/BrowseNGOs'
+import VolunteerProfile from './pages/volunteer/Profile'
 
 // Mentor Pages
 import MentorDashboard from './pages/mentor/Dashboard'
@@ -40,26 +51,13 @@ import StudentScorecard from './pages/student/Scorecard'
 // Public Test Page
 import PublicTest from './pages/test/PublicTest'
 
-// Placeholder dashboard pages
-const DashboardPlaceholder = ({ role }) => (
-  <div className="card text-center">
-    <h1 className="text-3xl font-bold text-gray-900 mb-4">
-      {role.charAt(0).toUpperCase() + role.slice(1)} Dashboard
-    </h1>
-    <p className="text-gray-600 mb-4">Welcome to your dashboard. This is a placeholder for the {role} dashboard page.</p>
-    <p className="text-sm text-gray-500">
-      Replace this component with actual dashboard content from pages/dashboard/{role}/
-    </p>
-  </div>
-)
-
 const NotFound = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-      <p className="text-lg text-gray-600 mb-4">Page not found</p>
-      <a href="/" className="btn-primary inline-flex">
-        Go to Home
+      <h1 className="text-6xl font-bold text-gray-300 mb-4">404</h1>
+      <p className="text-lg text-gray-600 mb-6">Page not found</p>
+      <a href="/" className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition">
+        Go Home
       </a>
     </div>
   </div>
@@ -71,7 +69,7 @@ function App() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner message="Loading..." />
+        <LoadingSpinner message="Loading GapZero..." />
       </div>
     )
   }
@@ -84,11 +82,11 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* Public Test Taking */}
+        {/* Public Test Taking (accessed via Gmail link with Test ID) */}
         <Route path="/test" element={<PublicTest />} />
         <Route path="/test/:testId" element={<PublicTest />} />
 
-        {/* NGO Admin Routes */}
+        {/* ==================== NGO Admin Routes ==================== */}
         <Route
           path="/ngo/*"
           element={
@@ -96,6 +94,7 @@ function App() {
               <Routes>
                 <Route path="dashboard" element={<NGODashboard />} />
                 <Route path="students" element={<Students />} />
+                <Route path="students/enroll" element={<EnrollStudent />} />
                 <Route path="students/:studentId" element={<StudentDetail />} />
                 <Route path="volunteers" element={<Volunteers />} />
                 <Route path="mentors" element={<Mentors />} />
@@ -107,24 +106,29 @@ function App() {
           }
         />
 
-        {/* Volunteer Routes */}
+        {/* ==================== Volunteer Routes ==================== */}
         <Route
           path="/volunteer/*"
           element={
             <ProtectedRoute requiredRole="volunteer">
               <Routes>
-                <Route path="dashboard" element={<DashboardPlaceholder role="volunteer" />} />
-                <Route path="sessions" element={<DashboardPlaceholder role="volunteer-sessions" />} />
-                <Route path="learning-path" element={<DashboardPlaceholder role="volunteer-learning" />} />
-                <Route path="students" element={<DashboardPlaceholder role="volunteer-students" />} />
-                <Route path="test-results" element={<DashboardPlaceholder role="volunteer-tests" />} />
+                <Route path="dashboard" element={<VolunteerDashboard />} />
+                <Route path="sessions" element={<VolunteerSessions />} />
+                <Route path="learning-path" element={<VolunteerLearningPath />} />
+                <Route path="create-test" element={<VolunteerCreateTest />} />
+                <Route path="create-test/:sessionId" element={<VolunteerCreateTest />} />
+                <Route path="test-results" element={<VolunteerTestResults />} />
+                <Route path="test-results/:assessmentId" element={<VolunteerTestResults />} />
+                <Route path="students" element={<VolunteerMyStudents />} />
+                <Route path="browse-ngos" element={<VolunteerBrowseNGOs />} />
+                <Route path="profile" element={<VolunteerProfile />} />
                 <Route path="*" element={<Navigate to="/volunteer/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
           }
         />
 
-        {/* Mentor Routes */}
+        {/* ==================== Mentor Routes ==================== */}
         <Route
           path="/mentor/*"
           element={
@@ -143,7 +147,7 @@ function App() {
           }
         />
 
-        {/* Student Routes */}
+        {/* ==================== Student Routes ==================== */}
         <Route
           path="/student/*"
           element={
@@ -151,21 +155,16 @@ function App() {
               <Routes>
                 <Route path="dashboard" element={<StudentDashboard />} />
                 <Route path="classes" element={<StudentMyClasses />} />
+                <Route path="mentor" element={<StudentMyMentor />} />
                 <Route path="tests" element={<StudentTests />} />
                 <Route path="tests/:testId/take" element={<StudentTakeTest />} />
                 <Route path="progress" element={<StudentProgress />} />
-                <Route path="mentor" element={<StudentMyMentor />} />
                 <Route path="scorecard/:testId" element={<StudentScorecard />} />
-                <Route path="badges" element={<DashboardPlaceholder role="student-badges" />} />
                 <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
           }
         />
-
-        {/* Common Routes */}
-        <Route path="/profile" element={<DashboardPlaceholder role="profile" />} />
-        <Route path="/settings" element={<DashboardPlaceholder role="settings" />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

@@ -149,7 +149,7 @@ router.get('/volunteers', authenticate, authorize(['ngo_admin']), async (req, re
         subjects: subjectList,
         grades: gradeList,
         duration: vol.duration,
-        languages: vol.languagesSpoken,
+        languages: vol.languages,
         qualifications: vol.qualifications,
         approved: vol.approved,
         createdAt: vol.createdAt

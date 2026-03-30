@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, ArrowLeft, School, Phone, Mail, Globe, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import { api } from '../../services/api';
 
 export default function EnrollStudent() {
   const navigate = useNavigate();
