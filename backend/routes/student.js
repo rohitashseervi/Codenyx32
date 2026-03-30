@@ -276,10 +276,11 @@ router.post('/change-mentor', authenticate, async (req, res) => {
 
 /**
  * GET /api/student/tests
- * Get pending tests
+ * Get pending or completed tests
  */
 router.get('/tests', authenticate, async (req, res) => {
   try {
+    const { status = 'pending' } = req.query;
     const student = await Student.findOne({ userId: req.user.userId });
     if (!student) {
       return res.status(404).json({
@@ -288,6 +289,24 @@ router.get('/tests', authenticate, async (req, res) => {
       });
     }
 
+    if (status === 'completed') {
+      const completedTests = (student.assessmentHistory || []).map(test => ({
+        id: test.assessmentId || test._id,
+        topic: test.topic,
+        subject: test.subject,
+        score: test.score,
+        date: test.date,
+        difficulty: test.difficulty || 'medium'
+      }));
+
+      return res.json({
+        success: true,
+        tests: completedTests,
+        total: completedTests.length
+      });
+    }
+
+    // Default: pending tests
     // Get assessments for student's class
     const assessments = await Assessment.find({
       classGroupId: student.classGroupId,
@@ -295,10 +314,23 @@ router.get('/tests', authenticate, async (req, res) => {
     }).select('_id title subject topic grade difficulty totalQuestions createdAt');
 
     // Filter to only tests student hasn't completed
-    const pendingTests = assessments.filter(test => {
-      const submission = test.submissions?.find(sub => sub.studentId.toString() === student._id.toString());
-      return !submission;
-    });
+    const pendingTests = assessments
+      .filter(test => {
+        const submission = student.assessmentHistory?.find(sub => 
+          sub.assessmentId && sub.assessmentId.toString() === test._id.toString()
+        );
+        return !submission;
+      })
+      .map(test => ({
+        id: test._id,
+        title: test.title,
+        subject: test.subject,
+        topic: test.topic,
+        grade: test.grade,
+        difficulty: test.difficulty,
+        totalQuestions: test.totalQuestions,
+        createdAt: test.createdAt
+      }));
 
     res.json({
       success: true,

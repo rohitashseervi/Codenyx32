@@ -438,4 +438,45 @@ router.post('/student/:studentId/notes', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/mentor/notes
+ * Get all notes created by the current mentor
+ */
+router.get('/notes', authenticate, async (req, res) => {
+  try {
+    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    if (!mentor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Mentor profile not found'
+      });
+    }
+
+    const notes = await MentorNote.find({ mentorId: mentor._id })
+      .populate('studentId', 'name')
+      .sort({ createdAt: -1 });
+
+    const formattedNotes = notes.map(note => ({
+      id: note._id,
+      student: note.studentId ? note.studentId.name : 'Unknown Student',
+      title: note.category.charAt(0).toUpperCase() + note.category.slice(1) + ' Note',
+      content: note.content,
+      date: note.createdAt.toISOString().split('T')[0],
+      priority: note.category === 'critical' ? 'high' : 'medium'
+    }));
+
+    res.json({
+      success: true,
+      notes: formattedNotes,
+      total: formattedNotes.length
+    });
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({
+      success: false,
+      error: `Failed to fetch notes: ${error.message}`
+    });
+  }
+});
+
 module.exports = router;

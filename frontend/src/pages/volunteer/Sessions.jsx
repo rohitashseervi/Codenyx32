@@ -19,7 +19,7 @@ const Sessions = () => {
     try {
       setLoading(true)
       const response = await api.volunteer.getSessions({ status: filter })
-      setSessions(response.data.data || response.data || [])
+      setSessions(response.data.sessions || [])
     } catch (error) {
       console.error('Failed to fetch sessions:', error)
       toast.error('Failed to load sessions')
@@ -30,9 +30,12 @@ const Sessions = () => {
 
   const handleStartSession = async (sessionId) => {
     try {
-      await api.volunteer.startSession(sessionId)
+      const response = await api.volunteer.startSession(sessionId)
       toast.success('Session started! Redirecting to Google Meet...')
-      // In real implementation, redirect to Google Meet URL from response
+      if (response.data.meetLink) {
+        window.open(response.data.meetLink, '_blank')
+      }
+      fetchSessions()
     } catch (error) {
       console.error('Failed to start session:', error)
       toast.error('Failed to start session')

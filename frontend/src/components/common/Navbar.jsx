@@ -1,14 +1,22 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Menu, X, LogOut, User, Settings } from 'lucide-react'
-import { Menu as HeadlessMenu } from '@headlessui/react'
+import { Menu, X, LogOut, User, Settings, Bell, ChevronDown, Zap } from 'lucide-react'
+import { Menu as HeadlessMenu, Transition } from '@headlessui/react'
+import { motion, AnimatePresence } from 'framer-motion'
 
-const Navbar = ({ onMenuToggle }) => {
+const Navbar = () => {
   const { user, role, logout, profile } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -17,10 +25,10 @@ const Navbar = ({ onMenuToggle }) => {
 
   const getRoleLabel = (r) => {
     const labels = {
-      ngo_admin: 'NGO Admin',
-      volunteer: 'Volunteer',
-      mentor: 'Mentor',
-      student: 'Student',
+      ngo_admin: 'Mission Control',
+      volunteer: 'Ambassador',
+      mentor: 'Guide',
+      student: 'Scholar',
     }
     return labels[r] || r
   }
@@ -37,170 +45,207 @@ const Navbar = ({ onMenuToggle }) => {
 
   const getNavLinks = () => {
     if (!role) return []
-
     const links = {
       ngo_admin: [
-        { label: 'Dashboard', href: '/ngo_admin/dashboard' },
-        { label: 'Students', href: '/ngo_admin/students' },
-        { label: 'Volunteers', href: '/ngo_admin/volunteers' },
-        { label: 'Mentors', href: '/ngo_admin/mentors' },
-        { label: 'Reports', href: '/ngo_admin/reports' },
+        { label: 'Intelligence', href: '/ngo_admin/dashboard' },
+        { label: 'Network', href: '/ngo_admin/students' },
+        { label: 'Coalition', href: '/ngo_admin/volunteers' },
+        { label: 'Audits', href: '/ngo_admin/reports' },
       ],
       volunteer: [
-        { label: 'Dashboard', href: '/volunteer/dashboard' },
+        { label: 'Focus', href: '/volunteer/dashboard' },
         { label: 'Sessions', href: '/volunteer/sessions' },
-        { label: 'Learning Path', href: '/volunteer/learning-path' },
-        { label: 'Students', href: '/volunteer/students' },
+        { label: 'Academy', href: '/volunteer/learning-path' },
       ],
       mentor: [
-        { label: 'Dashboard', href: '/mentor/dashboard' },
-        { label: 'Students', href: '/mentor/students' },
-        { label: 'Schedule', href: '/mentor/schedule' },
+        { label: 'Pulse', href: '/mentor/dashboard' },
+        { label: 'Mentees', href: '/mentor/students' },
         { label: 'Alerts', href: '/mentor/alerts' },
       ],
       student: [
-        { label: 'Dashboard', href: '/student/dashboard' },
+        { label: 'Explorer', href: '/student/dashboard' },
         { label: 'Classes', href: '/student/classes' },
-        { label: 'Tests', href: '/student/tests' },
         { label: 'Progress', href: '/student/progress' },
       ],
     }
-
     return links[role] || []
   }
 
   const navLinks = getNavLinks()
-  const isActive = (href) => location.pathname.startsWith(href.split('/').slice(0, 3).join('/'))
+  const isActive = (href) => location.pathname.startsWith(href)
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-40">
-      <div className="max-w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to={role ? getRoleDashboardPath() : '/'} className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-secondary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">GZ</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900 hidden sm:inline">GapZero</span>
-          </Link>
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+      scrolled 
+        ? 'py-3 px-4' 
+        : 'py-5 px-6'
+    }`}>
+      <motion.div 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className={`max-w-7xl mx-auto rounded-[2rem] border transition-all duration-500 ${
+          scrolled 
+            ? 'bg-white/80 backdrop-blur-2xl border-slate-200/50 shadow-2xl shadow-indigo-500/10' 
+            : 'bg-white border-transparent shadow-sm'
+        }`}
+      >
+        <div className="px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* High-End Logo */}
+            <Link to={role ? getRoleDashboardPath() : '/'} className="flex items-center gap-3 group">
+              <div className="relative">
+                <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform duration-500">
+                  <Zap className="w-5 h-5 text-indigo-400 fill-indigo-400" />
+                  <motion.div 
+                    animate={{ x: ['-100%', '200%'] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-black text-slate-900 tracking-tighter leading-none">CodeNyx</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] leading-none mt-1">Education</span>
+              </div>
+            </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={`text-sm font-medium transition-colors ${
-                  isActive(link.href)
-                    ? 'text-primary-600 border-b-2 border-primary-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Right side - User menu & Mobile toggle */}
-          <div className="flex items-center gap-4">
-            {user && (
-              <HeadlessMenu as="div" className="relative">
-                <HeadlessMenu.Button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="w-8 h-8 bg-gradient-to-br from-accent-400 to-accent-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                    {profile?.name?.[0] || user.email?.[0] || 'U'}
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 hidden sm:inline">
-                    {profile?.name || user.email}
-                  </span>
-                </HeadlessMenu.Button>
-
-                <HeadlessMenu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                  {role && (
-                    <HeadlessMenu.Item>
-                      <div className="px-4 py-2 border-b border-gray-200">
-                        <p className="text-xs text-gray-500">Role</p>
-                        <p className="text-sm font-semibold text-gray-900">{getRoleLabel(role)}</p>
-                      </div>
-                    </HeadlessMenu.Item>
+            {/* Futuristic Desktop Linkage */}
+            <div className="hidden lg:flex items-center gap-2">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={`relative px-5 py-2 text-[11px] font-black uppercase tracking-widest transition-all rounded-xl ${
+                    isActive(link.href)
+                      ? 'text-indigo-600'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  {link.label}
+                  {isActive(link.href) && (
+                    <motion.div 
+                      layoutId="nav-pill"
+                      className="absolute inset-0 bg-indigo-50 rounded-xl -z-10"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
                   )}
+                </Link>
+              ))}
+            </div>
 
-                  <HeadlessMenu.Item>
-                    {({ active }) => (
-                      <Link
-                        to="/profile"
-                        className={`flex items-center gap-2 px-4 py-2 text-sm ${
-                          active ? 'bg-gray-100' : ''
-                        }`}
-                      >
-                        <User className="w-4 h-4" />
-                        Profile
-                      </Link>
-                    )}
-                  </HeadlessMenu.Item>
+            {/* Utility & Profile Cluster */}
+            <div className="flex items-center gap-4">
+              <button className="relative p-2.5 text-slate-400 hover:text-indigo-600 transition-colors">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white"></span>
+              </button>
 
-                  <HeadlessMenu.Item>
-                    {({ active }) => (
-                      <Link
-                        to="/settings"
-                        className={`flex items-center gap-2 px-4 py-2 text-sm ${
-                          active ? 'bg-gray-100' : ''
-                        }`}
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </Link>
-                    )}
-                  </HeadlessMenu.Item>
+              {user ? (
+                <HeadlessMenu as="div" className="relative">
+                  <HeadlessMenu.Button className="flex items-center gap-3 pl-2 pr-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/50 rounded-2xl transition-all group">
+                    <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-indigo-400 text-xs font-black ring-4 ring-indigo-500/10">
+                      {profile?.name?.[0] || 'U'}
+                    </div>
+                    <div className="hidden sm:flex flex-col items-start text-left mr-2">
+                       <span className="text-xs font-black text-slate-900 leading-none">
+                         {profile?.name?.split(' ')[0] || 'User'}
+                       </span>
+                       <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter mt-1">
+                         {getRoleLabel(role)}
+                       </span>
+                    </div>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                  </HeadlessMenu.Button>
 
-                  <HeadlessMenu.Item>
-                    {({ active }) => (
-                      <button
-                        onClick={handleLogout}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm w-full text-left border-t border-gray-200 ${
-                          active ? 'bg-danger-50' : ''
-                        } text-danger-600`}
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    )}
-                  </HeadlessMenu.Item>
-                </HeadlessMenu.Items>
-              </HeadlessMenu>
-            )}
+                  <Transition
+                    enter="transition duration-200 ease-out"
+                    enterFrom="transform scale-95 opacity-0"
+                    enterTo="transform scale-100 opacity-100"
+                    leave="transition duration-100 ease-in"
+                    leaveFrom="transform scale-100 opacity-100"
+                    leaveTo="transform scale-95 opacity-0"
+                  >
+                    <HeadlessMenu.Items className="absolute right-0 mt-3 w-56 bg-white rounded-3xl shadow-2xl border border-slate-100 py-3 z-[110] focus:outline-none overflow-hidden">
+                       <div className="px-5 py-3 mb-2 border-b border-slate-50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identification</p>
+                          <p className="text-xs font-bold text-slate-900 truncate">{user.email}</p>
+                       </div>
+                       
+                       <HeadlessMenu.Item>
+                        {({ active }) => (
+                          <Link to="/profile" className={`flex items-center gap-3 px-5 py-3 text-xs font-bold ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600'}`}>
+                            <div className={`p-2 rounded-lg ${active ? 'bg-white' : 'bg-slate-50'}`}><User className="w-3.5 h-3.5" /></div>
+                            Operational Profile
+                          </Link>
+                        )}
+                      </HeadlessMenu.Item>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-5 h-5 text-gray-600" />
+                      <HeadlessMenu.Item>
+                        {({ active }) => (
+                          <Link to="/settings" className={`flex items-center gap-3 px-5 py-3 text-xs font-bold ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600'}`}>
+                            <div className={`p-2 rounded-lg ${active ? 'bg-white' : 'bg-slate-50'}`}><Settings className="w-3.5 h-3.5" /></div>
+                            System Settings
+                          </Link>
+                        )}
+                      </HeadlessMenu.Item>
+
+                      <HeadlessMenu.Item>
+                        {({ active }) => (
+                          <button onClick={handleLogout} className={`flex items-center gap-3 px-5 py-4 mt-2 text-xs font-black w-full text-left border-t border-slate-50 ${active ? 'bg-rose-50 text-rose-600' : 'text-slate-800'}`}>
+                            <div className={`p-2 rounded-lg ${active ? 'bg-white text-rose-600' : 'bg-rose-50 text-rose-600'}`}><LogOut className="w-3.5 h-3.5" /></div>
+                            Terminate Session
+                          </button>
+                        )}
+                      </HeadlessMenu.Item>
+                    </HeadlessMenu.Items>
+                  </Transition>
+                </HeadlessMenu>
               ) : (
-                <Menu className="w-5 h-5 text-gray-600" />
+                <Link to="/login" className="px-6 py-2.5 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 transition-all">
+                   Sign In
+                </Link>
               )}
-            </button>
+
+              {/* Advanced Mobile Toggle */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive(link.href) ? 'text-primary-600 bg-primary-50' : 'text-gray-600'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+        {/* Liquid Mobile Navigation */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="lg:hidden overflow-hidden border-t border-slate-50 bg-white rounded-b-[2rem]"
+            >
+              <div className="p-6 space-y-2">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`block px-5 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                      isActive(link.href) 
+                        ? 'bg-indigo-50 text-indigo-600' 
+                        : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </nav>
   )
 }

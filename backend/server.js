@@ -49,6 +49,7 @@ const mentorRoutes = require('./routes/mentor');
 const studentRoutes = require('./routes/student');
 const assessmentRoutes = require('./routes/assessment');
 const dashboardRoutes = require('./routes/dashboard');
+const communicationRoutes = require('./routes/communication');
 
 // Register routes
 app.use('/api/auth', authRoutes);
@@ -58,6 +59,7 @@ app.use('/api/mentor', mentorRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/test', assessmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/communication', communicationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

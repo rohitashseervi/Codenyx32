@@ -143,6 +143,14 @@ const dashboardAPI = {
   trends: (ngoId, params) => axiosInstance.get(`/dashboard/${ngoId}/trends`, { params }),
 }
 
+// Communication endpoints
+const communicationAPI = {
+  getNotifications: () => axiosInstance.get('/communication/notifications'),
+  markAsRead: (id) => axiosInstance.post(`/communication/notifications/${id}/read`),
+  getResources: () => axiosInstance.get('/communication/resources'),
+  uploadResource: (data) => axiosInstance.post('/communication/resources', data),
+}
+
 export const api = {
   auth: authAPI,
   ngo: ngoAPI,
@@ -151,6 +159,7 @@ export const api = {
   student: studentAPI,
   test: testAPI,
   dashboard: dashboardAPI,
+  communication: communicationAPI,
 }
 
 export default axiosInstance

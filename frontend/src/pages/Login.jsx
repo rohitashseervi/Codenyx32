@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import { Chrome, Mail } from 'lucide-react'
+import { Chrome, Mail, Zap, ArrowRight, Shield, Globe, Star } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 
 const Login = () => {
   const navigate = useNavigate()
-  const location = useLocation()
   const { loginWithGoogle, isAuthenticated, role, loading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -37,85 +37,156 @@ const Login = () => {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner message="Loading..." />
+      <div className="flex items-center justify-center min-h-screen bg-slate-950">
+        <LoadingSpinner message="Authenticating..." />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-secondary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">GZ</span>
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to GapZero</h1>
-          <p className="text-gray-600">Sign in to continue to your account</p>
-        </div>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
+      {/* Extravagant Animated Background */}
+      <div className="absolute inset-0 z-0">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            rotate: [0, 90, 0],
+            x: [0, 100, 0],
+            y: [0, 50, 0]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/20 rounded-full blur-[120px]" 
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.3, 1],
+            rotate: [0, -120, 0],
+            x: [0, -80, 0],
+            y: [0, -100, 0]
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[100px]" 
+        />
+      </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          {/* Google Sign In */}
+      <div className="w-full max-w-md relative z-10">
+        {/* Extravagant Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-10"
+        >
+          <div className="flex justify-center mb-6">
+            <motion.div 
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              className="relative"
+            >
+              <div className="w-16 h-16 bg-slate-900 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/20 border border-slate-800">
+                <Zap className="w-8 h-8 text-indigo-400 fill-indigo-400" />
+              </div>
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute inset-0 bg-indigo-500/20 rounded-[2rem] blur-xl -z-10"
+              />
+            </motion.div>
+          </div>
+          <motion.h1 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-4xl font-black text-white mb-2 tracking-tighter"
+          >
+            Code<span className="text-indigo-400">Nyx</span>
+          </motion.h1>
+          <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px]">
+            Future of Education Equity
+          </p>
+        </motion.div>
+
+        {/* Premium Glass Card */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white/5 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-10 shadow-2xl shadow-black/50"
+        >
+          <div className="text-center mb-8">
+            <h2 className="text-xl font-bold text-white mb-1">Operational Login</h2>
+            <p className="text-slate-500 text-xs font-medium">Continue your mission within the network</p>
+          </div>
+
           <button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-gray-700 mb-4"
+            className="w-full relative group"
           >
-            <Chrome className="w-5 h-5" />
-            {isLoading ? 'Signing in...' : 'Sign in with Google'}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-100 transition duration-500" />
+            <div className="relative flex items-center justify-center gap-3 px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50 font-black text-xs uppercase tracking-widest text-white">
+              <Chrome className="w-5 h-5 text-indigo-400" />
+              {isLoading ? 'Decrypting...' : 'Sign in with Google'}
+            </div>
           </button>
 
-          {/* Divider */}
-          <div className="relative my-6">
+          <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+              <div className="w-full border-t border-white/5"></div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
+              <span className="px-4 bg-slate-900/50 text-slate-500">Secure Protocol</span>
             </div>
           </div>
 
-          {/* Email Sign In - Coming Soon */}
           <button
             disabled
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-gray-100 border-2 border-gray-300 rounded-lg text-gray-700 font-medium opacity-50 cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-slate-500 font-black text-[10px] uppercase tracking-widest opacity-50 cursor-not-allowed"
           >
-            <Mail className="w-5 h-5" />
-            Email Sign In (Coming Soon)
+            <Mail className="w-4 h-4" />
+            Enterprise SSO
           </button>
-        </div>
+        </motion.div>
 
-        {/* Info Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">New to GapZero?</h3>
-          <p className="text-sm text-blue-800 mb-4">
-            Sign in with Google to get started. You'll be able to select your role in the next step.
-          </p>
-          <ul className="text-sm text-blue-800 space-y-1 ml-4">
-            <li>• NGO Admins: Manage students and volunteers</li>
-            <li>• Volunteers: Create and teach learning sessions</li>
-            <li>• Mentors: Guide and track student progress</li>
-            <li>• Students: Learn and complete assessments</li>
-          </ul>
-        </div>
+        {/* Extravagant Info Grid */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-8 grid grid-cols-2 gap-4"
+        >
+          <div className="bg-white/5 backdrop-blur-lg border border-white/5 rounded-3xl p-5 group hover:bg-indigo-500/5 transition-colors cursor-default">
+             <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Shield className="w-5 h-5 text-indigo-400" />
+             </div>
+             <p className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Encrypted</p>
+             <p className="text-[9px] text-slate-500 leading-tight">Your data is secured by industry standards.</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-lg border border-white/5 rounded-3xl p-5 group hover:bg-blue-500/5 transition-colors cursor-default">
+             <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Globe className="w-5 h-5 text-blue-400" />
+             </div>
+             <p className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Global Coverage</p>
+             <p className="text-[9px] text-slate-500 leading-tight">Access the network from anywhere on earth.</p>
+          </div>
+        </motion.div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-gray-600">
-          By signing in, you agree to our{' '}
-          <a href="#" className="text-primary-600 hover:text-primary-700 font-medium">
-            Terms of Service
-          </a>{' '}
-          and{' '}
-          <a href="#" className="text-primary-600 hover:text-primary-700 font-medium">
-            Privacy Policy
-          </a>
-        </p>
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-[10px] font-medium text-slate-500 mt-10 uppercase tracking-widest"
+        >
+          New to the network?{' '}
+          <Link to="/signup" className="text-indigo-400 hover:text-indigo-300 font-black transition-colors underline underline-offset-4">
+             Initialize Account
+          </Link>
+        </motion.p>
       </div>
     </div>
+  )
+}
+
+export default Login
   )
 }
 

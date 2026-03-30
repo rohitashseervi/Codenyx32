@@ -16,7 +16,19 @@ const LearningPath = () => {
     try {
       setLoading(true)
       const response = await api.volunteer.getLearningPath()
-      setModules(response.data.data || response.data || [])
+      const pathData = response.data.learningPath
+      
+      if (pathData && pathData.modules) {
+        // Map backend module structure to frontend expectations
+        const formattedModules = pathData.modules.map(m => ({
+          ...m,
+          topic: m.moduleName,
+          duration: m.moduleDuration
+        }))
+        setModules(formattedModules)
+      } else {
+        setModules([])
+      }
     } catch (error) {
       console.error('Failed to fetch learning path:', error)
       toast.error('Failed to load learning path')

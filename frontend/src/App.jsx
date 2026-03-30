@@ -9,6 +9,7 @@ import LoadingSpinner from './components/common/LoadingSpinner'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Profile from './pages/Profile'
 
 // NGO Pages
 import NGODashboard from './pages/ngo/Dashboard'
@@ -27,6 +28,7 @@ import MentorAlerts from './pages/mentor/Alerts'
 import MentorSchedule from './pages/mentor/Schedule'
 import MentorBrowseNGOs from './pages/mentor/BrowseNGOs'
 import MentorProfile from './pages/mentor/Profile'
+import MentorNotes from './pages/mentor/Notes'
 
 // Student Pages
 import StudentDashboard from './pages/student/Dashboard'
@@ -36,22 +38,22 @@ import StudentTests from './pages/student/Tests'
 import StudentTakeTest from './pages/student/TakeTest'
 import StudentProgress from './pages/student/Progress'
 import StudentScorecard from './pages/student/Scorecard'
+import StudentBadges from './pages/student/Badges'
+
+// Volunteer Pages
+import {
+  Dashboard as VolunteerDashboard,
+  Sessions as VolunteerSessions,
+  LearningPath as VolunteerLearningPath,
+  MyStudents as VolunteerStudents,
+  TestResults as VolunteerTests,
+  CreateTest as VolunteerCreateTest,
+  BrowseNGOs as VolunteerBrowseNGOs,
+  Profile as VolunteerProfile
+} from './pages/volunteer'
 
 // Public Test Page
 import PublicTest from './pages/test/PublicTest'
-
-// Placeholder dashboard pages
-const DashboardPlaceholder = ({ role }) => (
-  <div className="card text-center">
-    <h1 className="text-3xl font-bold text-gray-900 mb-4">
-      {role.charAt(0).toUpperCase() + role.slice(1)} Dashboard
-    </h1>
-    <p className="text-gray-600 mb-4">Welcome to your dashboard. This is a placeholder for the {role} dashboard page.</p>
-    <p className="text-sm text-gray-500">
-      Replace this component with actual dashboard content from pages/dashboard/{role}/
-    </p>
-  </div>
-)
 
 const NotFound = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -114,11 +116,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="volunteer">
               <Routes>
-                <Route path="dashboard" element={<DashboardPlaceholder role="volunteer" />} />
-                <Route path="sessions" element={<DashboardPlaceholder role="volunteer-sessions" />} />
-                <Route path="learning-path" element={<DashboardPlaceholder role="volunteer-learning" />} />
-                <Route path="students" element={<DashboardPlaceholder role="volunteer-students" />} />
-                <Route path="test-results" element={<DashboardPlaceholder role="volunteer-tests" />} />
+                <Route path="dashboard" element={<VolunteerDashboard />} />
+                <Route path="sessions" element={<VolunteerSessions />} />
+                <Route path="learning-path" element={<VolunteerLearningPath />} />
+                <Route path="students" element={<VolunteerStudents />} />
+                <Route path="test-results" element={<VolunteerTests />} />
+                <Route path="create-test" element={<VolunteerCreateTest />} />
+                <Route path="browse-ngos" element={<VolunteerBrowseNGOs />} />
+                <Route path="profile" element={<VolunteerProfile />} />
                 <Route path="*" element={<Navigate to="/volunteer/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
@@ -138,6 +143,7 @@ function App() {
                 <Route path="schedule" element={<MentorSchedule />} />
                 <Route path="browse-ngos" element={<MentorBrowseNGOs />} />
                 <Route path="profile" element={<MentorProfile />} />
+                <Route path="notes" element={<MentorNotes />} />
                 <Route path="*" element={<Navigate to="/mentor/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
@@ -157,7 +163,7 @@ function App() {
                 <Route path="progress" element={<StudentProgress />} />
                 <Route path="mentor" element={<StudentMyMentor />} />
                 <Route path="scorecard/:testId" element={<StudentScorecard />} />
-                <Route path="badges" element={<DashboardPlaceholder role="student-badges" />} />
+                <Route path="badges" element={<StudentBadges />} />
                 <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
@@ -165,8 +171,8 @@ function App() {
         />
 
         {/* Common Routes */}
-        <Route path="/profile" element={<DashboardPlaceholder role="profile" />} />
-        <Route path="/settings" element={<DashboardPlaceholder role="settings" />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
