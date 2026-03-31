@@ -64,8 +64,8 @@ async function generateLearningPath(volunteerId, classGroupId, subject, grade, c
     for (let i = 0; i < classSchedule.length && moduleIndex < modules.length; i++) {
       const moduleScheduleItem = {
         moduleId: modules[moduleIndex]._id,
-        moduleName: modules[moduleIndex].title,
-        moduleDuration: modules[moduleIndex].durationMinutes || 60,
+        moduleName: modules[moduleIndex].topic,
+        moduleDuration: modules[moduleIndex].estimatedDuration || 60,
         scheduledDate: classSchedule[i].date,
         status: 'scheduled'
       };
@@ -108,7 +108,7 @@ async function generateLearningPath(volunteerId, classGroupId, subject, grade, c
  */
 async function getLearningPath(learningPathId) {
   try {
-    const learningPath = await LearningPath.findById(learningPathId).populate('moduleId');
+    const learningPath = await LearningPath.findById(learningPathId).populate('modules.moduleId');
     if (!learningPath) {
       throw new Error('Learning path not found');
     }

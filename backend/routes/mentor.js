@@ -2,17 +2,21 @@ const express = require('express');
 const router = express.Router();
 const Mentor = require('../models/Mentor');
 const Student = require('../models/Student');
-const Match = require('../models/Match');
 const NGO = require('../models/NGO');
 const MentorNote = require('../models/MentorNote');
-const Assessment = require('../models/Assessment');
 const { authenticate, authorize } = require('../middleware/auth');
-const { createMeetSession } = require('../services/meetService');
-const { sendMentorAlert } = require('../services/gmailService');
+
+// Lazy-load optional services to avoid crashes if packages aren't installed
+let Match;
+try { Match = require('../models/Match'); } catch (e) { Match = null; }
+
+// Helper: find mentor or return null
+async function findMentor(userId) {
+  return await Mentor.findOne({ userId });
+}
 
 /**
  * POST /api/mentor/register
- * Register as mentor
  */
 router.post('/register', authenticate, async (req, res) => {
   try {
@@ -50,16 +54,12 @@ router.post('/register', authenticate, async (req, res) => {
 
 /**
  * PUT /api/mentor/profile
- * Update mentor profile
  */
 router.put('/profile', authenticate, async (req, res) => {
   try {
-    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    const mentor = await findMentor(req.user.userId);
     if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        error: 'Mentor profile not found'
-      });
+      return res.status(404).json({ success: false, error: 'Mentor profile not found' });
     }
 
     const { expertSubjects, languagesSpoken, maxStudents, behavioralProfile, yearsExperience } = req.body;
@@ -72,17 +72,10 @@ router.put('/profile', authenticate, async (req, res) => {
 
     await mentor.save();
 
-    res.json({
-      success: true,
-      mentor: mentor,
-      message: 'Profile updated successfully'
-    });
+    res.json({ success: true, mentor, message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Error updating mentor profile:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to update profile: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to update profile: ${error.message}` });
   }
 });
 
@@ -92,19 +85,35 @@ router.put('/profile', authenticate, async (req, res) => {
  */
 router.get('/ngos', authenticate, async (req, res) => {
   try {
-    const ngos = await NGO.find().select('-admins').sort({ createdAt: -1 });
+    const ngos = await NGO.find().sort({ createdAt: -1 });
+
+    // Get student and mentor counts for each NGO
+    const ngoList = await Promise.all(ngos.map(async (ngo) => {
+      const studentCount = await Student.countDocuments({ ngoId: ngo._id });
+      const mentorCount = await Mentor.countDocuments({ ngoId: ngo._id, approved: true });
+
+      return {
+        id: ngo._id,
+        _id: ngo._id,
+        name: ngo.name,
+        description: ngo.description || `${ngo.name} - empowering education for all`,
+        city: ngo.location || ngo.city || '',
+        focusAreas: ngo.focusAreas || ['Education', 'Youth Development'],
+        studentCount,
+        mentorCount,
+        status: ngo.status || 'active'
+      };
+    }));
 
     res.json({
       success: true,
-      ngos: ngos,
-      total: ngos.length
+      ngos: ngoList,
+      data: ngoList,
+      total: ngoList.length
     });
   } catch (error) {
     console.error('Error fetching NGOs:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch NGOs: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to fetch NGOs: ${error.message}` });
   }
 });
 
@@ -116,25 +125,16 @@ router.post('/join/:ngoId', authenticate, async (req, res) => {
   try {
     const ngo = await NGO.findById(req.params.ngoId);
     if (!ngo) {
-      return res.status(404).json({
-        success: false,
-        error: 'NGO not found'
-      });
+      return res.status(404).json({ success: false, error: 'NGO not found' });
     }
 
-    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    const mentor = await findMentor(req.user.userId);
     if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        error: 'Mentor profile not found'
-      });
+      return res.status(404).json({ success: false, error: 'Mentor profile not found' });
     }
 
     if (mentor.ngoId && mentor.ngoId.toString() === req.params.ngoId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Already joined this NGO'
-      });
+      return res.status(400).json({ success: false, error: 'Already joined this NGO' });
     }
 
     mentor.ngoId = ngo._id;
@@ -143,69 +143,81 @@ router.post('/join/:ngoId', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      mentor: mentor,
+      mentor,
       message: 'Join request submitted, pending NGO approval'
     });
   } catch (error) {
     console.error('Error joining NGO:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to join NGO: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to join NGO: ${error.message}` });
   }
 });
 
 /**
  * GET /api/mentor/students
- * Get assigned students with progress
+ * Get assigned students — returns empty array gracefully
  */
 router.get('/students', authenticate, async (req, res) => {
   try {
-    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    const mentor = await findMentor(req.user.userId);
     if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        error: 'Mentor profile not found'
+      return res.json({
+        success: true,
+        data: [],
+        students: [],
+        total: 0,
+        message: 'No students assigned yet. Join an NGO first.'
       });
     }
 
-    const matches = await Match.find({
-      mentorId: mentor._id,
-      status: 'active'
-    }).populate('studentId');
+    // Try Match model if available, otherwise look for students directly assigned
+    let students = [];
 
-    const students = matches.map(match => ({
-      ...match.studentId.toObject(),
-      matchScore: match.matchScore,
-      matchedAt: match.matchedAt
-    }));
+    if (Match) {
+      try {
+        const matches = await Match.find({
+          mentorId: mentor._id,
+          status: 'active'
+        }).populate('studentId');
+
+        students = matches
+          .filter(m => m.studentId) // filter out any null refs
+          .map(match => ({
+            ...match.studentId.toObject(),
+            matchScore: match.matchScore,
+            matchedAt: match.matchedAt
+          }));
+      } catch (e) {
+        console.warn('Match model query failed, falling back to direct student lookup:', e.message);
+      }
+    }
+
+    // Fallback: find students directly assigned to this mentor
+    if (students.length === 0) {
+      const directStudents = await Student.find({ mentorId: mentor._id });
+      students = directStudents.map(s => s.toObject());
+    }
 
     res.json({
       success: true,
+      data: students,
       students: students,
       total: students.length
     });
   } catch (error) {
     console.error('Error fetching students:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch students: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to fetch students: ${error.message}` });
   }
 });
 
 /**
- * GET /api/mentor/student/:studentId/progress
+ * GET /api/mentor/students/:studentId/progress
  * Get detailed student progress
  */
-router.get('/student/:studentId/progress', authenticate, async (req, res) => {
+router.get('/students/:studentId/progress', authenticate, async (req, res) => {
   try {
     const student = await Student.findById(req.params.studentId);
     if (!student) {
-      return res.status(404).json({
-        success: false,
-        error: 'Student not found'
-      });
+      return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
     const avgScore = student.assessmentHistory?.length > 0
@@ -225,121 +237,121 @@ router.get('/student/:studentId/progress', authenticate, async (req, res) => {
       progress: {
         averageScore: parseFloat(avgScore),
         totalTests: student.assessmentHistory?.length || 0,
-        recentTests: recentTests,
+        recentTests,
         badges: student.badges || [],
-        currentStreak: student.currentStreak || 0
+        currentStreak: student.consistencyStreak || 0
       }
     });
   } catch (error) {
     console.error('Error fetching student progress:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch student progress: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to fetch student progress: ${error.message}` });
   }
 });
 
 /**
- * POST /api/mentor/student/:studentId/schedule-meet
- * Schedule 1-on-1 Meet session
+ * POST /api/mentor/schedule-meet
+ * Schedule a mentoring session
  */
-router.post('/student/:studentId/schedule-meet', authenticate, async (req, res) => {
+router.post('/schedule-meet', authenticate, async (req, res) => {
   try {
-    const student = await Student.findById(req.params.studentId);
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        error: 'Student not found'
-      });
-    }
-
-    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    const mentor = await findMentor(req.user.userId);
     if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        error: 'Mentor profile not found'
-      });
+      return res.status(404).json({ success: false, error: 'Mentor profile not found' });
     }
 
-    const { topic, dateTime, duration } = req.body;
-    if (!topic || !dateTime) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: topic, dateTime'
-      });
+    const { studentId, topic, dateTime, duration, notes } = req.body;
+    if (!studentId || !topic || !dateTime) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: studentId, topic, dateTime' });
     }
 
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    // Try to create a Meet link if service is available
+    let meetLink = null;
     try {
+      const { createMeetSession } = require('../services/meetService');
       const meetResult = await createMeetSession(
         topic,
         dateTime,
         duration || 30,
         [student.email]
       );
-
-      const session = {
-        topic: topic,
-        mentorId: mentor._id,
-        studentId: student._id,
-        scheduledDate: new Date(dateTime),
-        duration: duration || 30,
-        meetLink: meetResult.meetLink,
-        meetEventId: meetResult.eventId,
-        status: 'scheduled',
-        createdAt: new Date()
-      };
-
-      // Save to MentorNote or session tracking (depending on your model)
-      // For now, we'll return the session details
-      res.json({
-        success: true,
-        session: session,
-        message: 'Meet session scheduled successfully',
-        meetLink: meetResult.meetLink
-      });
+      meetLink = meetResult.meetLink;
     } catch (meetError) {
-      return res.status(400).json({
-        success: false,
-        error: `Failed to create Meet session: ${meetError.message}`
-      });
+      console.warn('Meet session creation failed (service may not be configured):', meetError.message);
     }
+
+    const session = {
+      topic,
+      mentorId: mentor._id,
+      studentId: student._id,
+      studentName: student.name,
+      scheduledDate: new Date(dateTime),
+      duration: duration || 30,
+      meetLink,
+      notes: notes || '',
+      status: 'scheduled',
+      createdAt: new Date()
+    };
+
+    res.json({
+      success: true,
+      data: session,
+      session,
+      meetLink,
+      message: meetLink ? 'Session scheduled with Meet link' : 'Session scheduled (Meet link unavailable)'
+    });
   } catch (error) {
     console.error('Error scheduling meet:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to schedule meet: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to schedule meet: ${error.message}` });
   }
 });
 
 /**
  * GET /api/mentor/alerts
- * Get weak performance alerts
+ * Get weak performance alerts — returns empty array gracefully
  */
 router.get('/alerts', authenticate, async (req, res) => {
   try {
-    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    const mentor = await findMentor(req.user.userId);
     if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        error: 'Mentor profile not found'
+      return res.json({
+        success: true,
+        data: [],
+        alerts: [],
+        total: 0,
+        message: 'No alerts. Join an NGO and get students assigned first.'
       });
     }
 
-    // Get all active matches for this mentor
-    const matches = await Match.find({
-      mentorId: mentor._id,
-      status: 'active'
-    }).populate('studentId');
-
     const alerts = [];
 
+    // Try using Match model if available
+    let students = [];
+    if (Match) {
+      try {
+        const matches = await Match.find({
+          mentorId: mentor._id,
+          status: 'active'
+        }).populate('studentId');
+        students = matches.filter(m => m.studentId).map(m => m.studentId);
+      } catch (e) {
+        console.warn('Match query failed in alerts:', e.message);
+      }
+    }
+
+    // Fallback to direct student lookup
+    if (students.length === 0) {
+      students = await Student.find({ mentorId: mentor._id });
+    }
+
     // Check each student's recent performance
-    for (const match of matches) {
-      const student = match.studentId;
+    for (const student of students) {
       const recentTests = (student.assessmentHistory || []).slice(-3);
 
-      // Alert if any recent test score is below 60%
       const lowScores = recentTests.filter(test => test.score < 60);
       if (lowScores.length > 0) {
         alerts.push({
@@ -353,8 +365,7 @@ router.get('/alerts', authenticate, async (req, res) => {
         });
       }
 
-      // Alert if student hasn't completed a test in 7 days
-      const lastTest = recentTests[0];
+      const lastTest = recentTests[recentTests.length - 1];
       if (lastTest) {
         const daysSinceTest = (new Date() - new Date(lastTest.date)) / (1000 * 60 * 60 * 24);
         if (daysSinceTest > 7) {
@@ -372,69 +383,82 @@ router.get('/alerts', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      alerts: alerts,
+      data: alerts,
+      alerts,
       total: alerts.length
     });
   } catch (error) {
     console.error('Error fetching alerts:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch alerts: ${error.message}`
-    });
+    res.status(500).json({ success: false, error: `Failed to fetch alerts: ${error.message}` });
   }
 });
 
 /**
- * POST /api/mentor/student/:studentId/notes
+ * POST /api/mentor/students/:studentId/notes
  * Add guidance notes
  */
-router.post('/student/:studentId/notes', authenticate, async (req, res) => {
+router.post('/students/:studentId/notes', authenticate, async (req, res) => {
   try {
     const student = await Student.findById(req.params.studentId);
     if (!student) {
-      return res.status(404).json({
-        success: false,
-        error: 'Student not found'
-      });
+      return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
-    const mentor = await Mentor.findOne({ userId: req.user.userId });
+    const mentor = await findMentor(req.user.userId);
     if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        error: 'Mentor profile not found'
-      });
+      return res.status(404).json({ success: false, error: 'Mentor profile not found' });
     }
 
     const { content, category } = req.body;
     if (!content) {
-      return res.status(400).json({
-        success: false,
-        error: 'Note content is required'
-      });
+      return res.status(400).json({ success: false, error: 'Note content is required' });
     }
 
     const note = new MentorNote({
       mentorId: mentor._id,
       studentId: student._id,
-      content: content,
+      content,
       category: category || 'general',
       createdAt: new Date()
     });
 
     await note.save();
 
-    res.status(201).json({
-      success: true,
-      note: note,
-      message: 'Note added successfully'
-    });
+    res.status(201).json({ success: true, note, message: 'Note added successfully' });
   } catch (error) {
     console.error('Error adding note:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to add note: ${error.message}`
+    res.status(500).json({ success: false, error: `Failed to add note: ${error.message}` });
+  }
+});
+
+/**
+ * GET /api/mentor/notes
+ * Get all notes by this mentor
+ */
+router.get('/notes', authenticate, async (req, res) => {
+  try {
+    const mentor = await findMentor(req.user.userId);
+    if (!mentor) {
+      return res.json({
+        success: true,
+        data: [],
+        total: 0,
+        message: 'No notes yet.'
+      });
+    }
+
+    const notes = await MentorNote.find({ mentorId: mentor._id })
+      .populate('studentId', 'name grade')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: notes,
+      total: notes.length
     });
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ success: false, error: `Failed to fetch notes: ${error.message}` });
   }
 });
 

@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { auth } from '../config/firebase'
 import toast from 'react-hot-toast'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
@@ -13,16 +12,12 @@ const axiosInstance = axios.create({
   },
 })
 
-// Request interceptor - attach Firebase token
+// Request interceptor - attach token from localStorage
 axiosInstance.interceptors.request.use(
-  async (config) => {
-    try {
-      if (auth.currentUser) {
-        const token = await auth.currentUser.getIdToken()
-        config.headers.Authorization = `Bearer ${token}`
-      }
-    } catch (error) {
-      console.error('Error getting auth token:', error)
+  (config) => {
+    const token = localStorage.getItem('gapzero_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
@@ -85,8 +80,8 @@ const ngoAPI = {
 const volunteerAPI = {
   register: (data) => axiosInstance.post('/volunteer/register', data),
   updateProfile: (data) => axiosInstance.put('/volunteer/profile', data),
-  browseNGOs: (params) => axiosInstance.get('/volunteer/ngo/browse', { params }),
-  joinNGO: (ngoId) => axiosInstance.post(`/volunteer/ngo/${ngoId}/join`),
+  browseNGOs: (params) => axiosInstance.get('/volunteer/ngos', { params }),
+  joinNGO: (ngoId) => axiosInstance.post(`/volunteer/join/${ngoId}`),
   getLearningPath: () => axiosInstance.get('/volunteer/learning-path'),
   getSessions: (params) => axiosInstance.get('/volunteer/sessions', { params }),
   startSession: (sessionId) => axiosInstance.post(`/volunteer/sessions/${sessionId}/start`),
@@ -100,13 +95,14 @@ const volunteerAPI = {
 const mentorAPI = {
   register: (data) => axiosInstance.post('/mentor/register', data),
   updateProfile: (data) => axiosInstance.put('/mentor/profile', data),
-  browseNGOs: (params) => axiosInstance.get('/mentor/ngo/browse', { params }),
-  joinNGO: (ngoId) => axiosInstance.post(`/mentor/ngo/${ngoId}/join`),
+  browseNGOs: (params) => axiosInstance.get('/mentor/ngos', { params }),
+  joinNGO: (ngoId) => axiosInstance.post(`/mentor/join/${ngoId}`),
   getStudents: (params) => axiosInstance.get('/mentor/students', { params }),
   getStudentProgress: (studentId) => axiosInstance.get(`/mentor/students/${studentId}/progress`),
   scheduleMeet: (data) => axiosInstance.post('/mentor/schedule-meet', data),
   getAlerts: () => axiosInstance.get('/mentor/alerts'),
   addNotes: (studentId, data) => axiosInstance.post(`/mentor/students/${studentId}/notes`, data),
+  getNotes: () => axiosInstance.get('/mentor/notes'),
 }
 
 // Student endpoints
@@ -131,6 +127,19 @@ const testAPI = {
   getScorecard: (testId) => axiosInstance.get(`/test/${testId}/scorecard`),
 }
 
+// Learning Path endpoints
+const learningPathAPI = {
+  getCourses: (params) => axiosInstance.get('/learning-path/courses', { params }),
+  setup: (data) => axiosInstance.post('/learning-path/setup', data),
+  getMyPath: () => axiosInstance.get('/learning-path/my-path'),
+  startSession: (sessionId) => axiosInstance.post(`/learning-path/session/${sessionId}/start`),
+  completeSession: (sessionId) => axiosInstance.post(`/learning-path/session/${sessionId}/complete`),
+  createTest: (sessionId, data) => axiosInstance.post(`/learning-path/session/${sessionId}/create-test`, data),
+  getSessionResults: (sessionId) => axiosInstance.get(`/learning-path/session/${sessionId}/results`),
+  completeModule: (moduleIndex) => axiosInstance.post(`/learning-path/module/${moduleIndex}/complete`),
+  reset: () => axiosInstance.delete('/learning-path/reset'),
+}
+
 // Dashboard endpoints
 const dashboardAPI = {
   overview: (ngoId) => axiosInstance.get(`/dashboard/${ngoId}/overview`),
@@ -151,6 +160,7 @@ export const api = {
   student: studentAPI,
   test: testAPI,
   dashboard: dashboardAPI,
+  learningPath: learningPathAPI,
 }
 
 export default axiosInstance

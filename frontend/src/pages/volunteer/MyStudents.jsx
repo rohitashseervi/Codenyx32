@@ -19,7 +19,8 @@ const MyStudents = () => {
     try {
       setLoading(true)
       const response = await api.volunteer.getStudents()
-      const data = response.data.data || response.data || []
+      const raw = response.data?.data || response.data?.students || []
+      const data = Array.isArray(raw) ? raw : []
 
       // Group students by class
       const grouped = data.reduce((acc, student) => {

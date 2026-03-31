@@ -15,9 +15,13 @@ const Navbar = ({ onMenuToggle }) => {
     navigate('/')
   }
 
+  // Map role to route prefix (ngo_admin → ngo)
+  const roleKey = role === 'ngo_admin' ? 'ngo' : role
+
   const getRoleLabel = (r) => {
     const labels = {
       ngo: 'NGO Admin',
+      ngo_admin: 'NGO Admin',
       volunteer: 'Volunteer',
       mentor: 'Mentor',
       student: 'Student',
@@ -32,7 +36,7 @@ const Navbar = ({ onMenuToggle }) => {
       mentor: '/mentor/dashboard',
       student: '/student/dashboard',
     }
-    return paths[role] || '/'
+    return paths[roleKey] || '/'
   }
 
   const getNavLinks = () => {
@@ -66,7 +70,7 @@ const Navbar = ({ onMenuToggle }) => {
       ],
     }
 
-    return links[role] || []
+    return links[roleKey] || []
   }
 
   const navLinks = getNavLinks()
@@ -141,7 +145,7 @@ const Navbar = ({ onMenuToggle }) => {
                   <HeadlessMenu.Item>
                     {({ active }) => (
                       <Link
-                        to="/settings"
+                        to={`/${roleKey}/settings`}
                         className={`flex items-center gap-2 px-4 py-2 text-sm ${
                           active ? 'bg-gray-100' : ''
                         }`}

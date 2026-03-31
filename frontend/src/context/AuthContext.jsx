@@ -1,6 +1,4 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react'
-import { signOut, signInWithPopup, onAuthStateChanged } from 'firebase/auth'
-import { auth, googleProvider } from '../config/firebase'
 import { api } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -13,48 +11,73 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  // Refresh user profile from backend
-  const refreshProfile = useCallback(async () => {
+  // On mount, check if token exists in localStorage
+  useEffect(() => {
+    const token = localStorage.getItem('gapzero_token')
+    const savedUser = localStorage.getItem('gapzero_user')
+    if (token && savedUser) {
+      try {
+        const userData = JSON.parse(savedUser)
+        setUser(userData)
+        setRole(userData.role)
+        setProfile(userData.profile)
+        setIsAuthenticated(true)
+      } catch (e) {
+        localStorage.removeItem('gapzero_token')
+        localStorage.removeItem('gapzero_user')
+      }
+    }
+    setLoading(false)
+  }, [])
+
+  // Login with email and password
+  const login = useCallback(async (email, password) => {
     try {
-      const response = await api.auth.getMe()
-      setProfile(response.data.profile || response.data)
-      setRole(response.data.role || response.data.profile?.role)
-      return response.data
+      setLoading(true)
+      const response = await api.auth.login({ email, password })
+      const { token, user: userData } = response.data
+
+      // Save token
+      localStorage.setItem('gapzero_token', token)
+      localStorage.setItem('gapzero_user', JSON.stringify(userData))
+
+      setUser(userData)
+      setRole(userData.role)
+      setProfile(userData.profile)
+      setIsAuthenticated(true)
+      toast.success('Logged in successfully!')
+      return { user: userData, role: userData.role, isNewUser: false }
     } catch (error) {
-      console.error('Failed to refresh profile:', error)
+      console.error('Login error:', error)
+      const msg = error.response?.data?.error || 'Failed to login. Please try again.'
+      toast.error(msg)
       throw error
+    } finally {
+      setLoading(false)
     }
   }, [])
 
-  // Login with Google
-  const loginWithGoogle = useCallback(async () => {
+  // Register
+  const register = useCallback(async (data) => {
     try {
       setLoading(true)
-      const result = await signInWithPopup(auth, googleProvider)
-      const user = result.user
-      const token = await user.getIdToken()
+      const response = await api.auth.register(data)
+      const { token, user: userData } = response.data
 
-      try {
-        // Try to verify token with backend and get user profile
-        const response = await api.auth.login({ token })
-        setProfile(response.data.profile || response.data)
-        setRole(response.data.role || response.data.profile?.role)
-        setUser(user)
-        setIsAuthenticated(true)
-        toast.success('Logged in successfully!')
-        return { user, role: response.data.role || response.data.profile?.role, isNewUser: false }
-      } catch (error) {
-        // User doesn't exist in backend yet
-        if (error.response?.status === 404) {
-          setUser(user)
-          setIsAuthenticated(true)
-          return { user, role: null, isNewUser: true }
-        }
-        throw error
-      }
+      // Save token
+      localStorage.setItem('gapzero_token', token)
+      localStorage.setItem('gapzero_user', JSON.stringify(userData))
+
+      setUser(userData)
+      setRole(userData.role)
+      setProfile(userData.profile)
+      setIsAuthenticated(true)
+      toast.success('Account created successfully!')
+      return { user: userData, role: userData.role }
     } catch (error) {
-      console.error('Login error:', error)
-      toast.error('Failed to login. Please try again.')
+      console.error('Register error:', error)
+      const msg = error.response?.data?.error || 'Failed to register. Please try again.'
+      toast.error(msg)
       throw error
     } finally {
       setLoading(false)
@@ -63,57 +86,28 @@ export const AuthProvider = ({ children }) => {
 
   // Logout
   const logout = useCallback(async () => {
-    try {
-      setLoading(true)
-      await signOut(auth)
-      setUser(null)
-      setRole(null)
-      setProfile(null)
-      setIsAuthenticated(false)
-      toast.success('Logged out successfully!')
-    } catch (error) {
-      console.error('Logout error:', error)
-      toast.error('Failed to logout. Please try again.')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    localStorage.removeItem('gapzero_token')
+    localStorage.removeItem('gapzero_user')
+    setUser(null)
+    setRole(null)
+    setProfile(null)
+    setIsAuthenticated(false)
+    toast.success('Logged out successfully!')
   }, [])
 
-  // Monitor Firebase auth state
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          setUser(firebaseUser)
-          // Try to fetch user profile from backend
-          try {
-            const response = await api.auth.getMe()
-            setProfile(response.data.profile || response.data)
-            setRole(response.data.role || response.data.profile?.role)
-            setIsAuthenticated(true)
-          } catch (error) {
-            // User exists in Firebase but not in backend
-            if (error.response?.status === 404) {
-              setIsAuthenticated(true)
-              setRole(null)
-            } else {
-              // Other errors - might be network issue
-              console.error('Error fetching profile:', error)
-            }
-          }
-        } else {
-          setUser(null)
-          setRole(null)
-          setProfile(null)
-          setIsAuthenticated(false)
-        }
-      } finally {
-        setLoading(false)
-      }
-    })
-
-    return () => unsubscribe()
+  // Refresh profile
+  const refreshProfile = useCallback(async () => {
+    try {
+      const response = await api.auth.getMe()
+      const userData = response.data.user || response.data
+      setProfile(userData.profile)
+      setRole(userData.role)
+      localStorage.setItem('gapzero_user', JSON.stringify(userData))
+      return userData
+    } catch (error) {
+      console.error('Failed to refresh profile:', error)
+      throw error
+    }
   }, [])
 
   const value = {
@@ -122,7 +116,8 @@ export const AuthProvider = ({ children }) => {
     profile,
     loading,
     isAuthenticated,
-    loginWithGoogle,
+    login,
+    register,
     logout,
     refreshProfile,
     setRole,

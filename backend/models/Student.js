@@ -12,7 +12,7 @@ const StudentSchema = new mongoose.Schema({
   ngoId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'NGO',
-    required: true
+    default: null
   },
   classGroupId: {
     type: mongoose.Schema.Types.ObjectId,

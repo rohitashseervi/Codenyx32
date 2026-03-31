@@ -18,11 +18,15 @@ const Sidebar = ({ isOpen, onClose }) => {
   const { role } = useAuth()
   const location = useLocation()
 
+  // Map role to URL prefix (ngo_admin → ngo for routes)
+  const rolePrefix = role === 'ngo_admin' ? 'ngo' : role
+  const roleKey = role === 'ngo_admin' ? 'ngo' : role
+
   const getSidebarItems = () => {
     const baseItems = [
       {
         label: 'Dashboard',
-        href: `/${role}/dashboard`,
+        href: `/${rolePrefix}/dashboard`,
         icon: LayoutDashboard,
       },
     ]
@@ -55,7 +59,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       ],
     }
 
-    return [...baseItems, ...(roleItems[role] || [])]
+    return [...baseItems, ...(roleItems[roleKey] || [])]
   }
 
   const items = getSidebarItems()
@@ -107,11 +111,11 @@ const Sidebar = ({ isOpen, onClose }) => {
 
           {/* Settings at bottom */}
           <Link
-            to="/settings"
+            to={`/${rolePrefix}/settings`}
             onClick={onClose}
             className={`
               flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-              ${isActive('/settings')
+              ${location.pathname.endsWith('/settings')
                 ? 'bg-primary-50 text-primary-600 font-semibold border-l-4 border-primary-600'
                 : 'text-gray-700 hover:bg-gray-50'
               }

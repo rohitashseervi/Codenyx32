@@ -4,93 +4,194 @@ const Student = require('../models/Student');
 const Volunteer = require('../models/Volunteer');
 const Mentor = require('../models/Mentor');
 const Assessment = require('../models/Assessment');
+const Session = require('../models/Session');
 const NGO = require('../models/NGO');
 const { authenticate, authorize } = require('../middleware/auth');
 
 /**
- * GET /api/dashboard/overview
- * KPI overview
+ * GET /api/dashboard/:ngoId/overview
+ * KPI overview for an NGO
  */
-router.get('/overview', authenticate, authorize(['ngo_admin']), async (req, res) => {
+router.get('/:ngoId/overview', authenticate, authorize(['ngo_admin']), async (req, res) => {
   try {
-    const { ngoId } = req.query;
+    const { ngoId } = req.params;
 
-    // Get counts
-    const students = await Student.countDocuments({ ngoId: ngoId });
-    const volunteers = await Volunteer.countDocuments({ ngoId: ngoId, approved: true });
-    const mentors = await Mentor.countDocuments({ ngoId: ngoId, approved: true });
+    const totalStudents = await Student.countDocuments({ ngoId });
+    const activeVolunteers = await Volunteer.countDocuments({ ngoId, approved: true });
+    const activeMentors = await Mentor.countDocuments({ ngoId, approved: true });
 
-    // Calculate average mastery
-    const studentsList = await Student.find({ ngoId: ngoId });
+    // Calculate average mastery from assessment history
+    const students = await Student.find({ ngoId });
     let totalAvgScore = 0;
     let studentsWithTests = 0;
+    let atRiskCount = 0;
+    let onTrackCount = 0;
+    let developingCount = 0;
 
-    studentsList.forEach(student => {
+    students.forEach(student => {
       if (student.assessmentHistory && student.assessmentHistory.length > 0) {
-        const avgScore = student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length;
+        const avgScore = student.assessmentHistory.reduce((sum, a) => sum + (a.score || 0), 0) / student.assessmentHistory.length;
         totalAvgScore += avgScore;
         studentsWithTests++;
+
+        if (avgScore >= 75) onTrackCount++;
+        else if (avgScore >= 50) developingCount++;
+        else atRiskCount++;
       }
     });
 
-    const averageMastery = studentsWithTests > 0 ? (totalAvgScore / studentsWithTests).toFixed(2) : 0;
+    const avgMasteryScore = studentsWithTests > 0 ? totalAvgScore / studentsWithTests : 0;
 
-    // Find at-risk students (avg score < 60%)
-    const atRiskCount = studentsList.filter(student => {
-      if (!student.assessmentHistory || student.assessmentHistory.length === 0) return false;
-      const avgScore = student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length;
-      return avgScore < 60;
-    }).length;
+    // Session completion rate
+    const totalSessions = await Session.countDocuments({ ngoId }).catch(() => 0);
+    const completedSessions = await Session.countDocuments({ ngoId, status: 'completed' }).catch(() => 0);
+    const sessionCompletionRate = totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0;
 
     res.json({
-      success: true,
-      overview: {
-        totalStudents: students,
-        totalVolunteers: volunteers,
-        totalMentors: mentors,
-        averageMastery: parseFloat(averageMastery),
-        atRiskStudents: atRiskCount,
-        healthScore: `${Math.min(100, Math.round((averageMastery + 40) * 1.25))}%`
-      }
+      totalStudents,
+      activeVolunteers,
+      activeMentors,
+      avgMasteryScore,
+      atRiskStudents: atRiskCount,
+      onTrackStudents: onTrackCount,
+      developingStudents: developingCount,
+      sessionCompletionRate
     });
   } catch (error) {
     console.error('Error fetching overview:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch overview: ${error.message}`
-    });
+    res.status(500).json({ error: `Failed to fetch overview: ${error.message}` });
   }
 });
 
 /**
- * GET /api/dashboard/students
- * Student performance list with filters
+ * GET /api/dashboard/:ngoId/trends
+ * Mastery trends over time
  */
-router.get('/students', authenticate, authorize(['ngo_admin']), async (req, res) => {
+router.get('/:ngoId/trends', authenticate, authorize(['ngo_admin']), async (req, res) => {
   try {
-    const { ngoId, sortBy = 'name', filter = 'all' } = req.query;
+    const { ngoId } = req.params;
+    const days = parseInt(req.query.days) || 30;
 
-    let students = await Student.find({ ngoId: ngoId });
+    const students = await Student.find({ ngoId });
+    const dailyScores = {};
 
-    // Apply filter
-    if (filter === 'at-risk') {
-      students = students.filter(student => {
-        if (!student.assessmentHistory || student.assessmentHistory.length === 0) return true;
-        const avgScore = student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length;
-        return avgScore < 60;
-      });
-    } else if (filter === 'top-performers') {
-      students = students.filter(student => {
-        if (!student.assessmentHistory || student.assessmentHistory.length === 0) return false;
-        const avgScore = student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length;
-        return avgScore >= 80;
-      });
+    // Generate date range
+    const now = new Date();
+    for (let i = days; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      dailyScores[key] = { scores: [], date: key };
     }
 
-    // Enrich with scores and badges
-    const enrichedStudents = students.map(student => {
-      const avgScore = student.assessmentHistory?.length > 0
-        ? (student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length).toFixed(2)
+    students.forEach(student => {
+      (student.assessmentHistory || []).forEach(test => {
+        const testDate = new Date(test.date).toISOString().split('T')[0];
+        if (dailyScores[testDate]) {
+          dailyScores[testDate].scores.push(test.score || 0);
+        }
+      });
+    });
+
+    // Build cumulative trend
+    let lastAvg = 0;
+    const trends = Object.values(dailyScores).map(day => {
+      if (day.scores.length > 0) {
+        lastAvg = day.scores.reduce((a, b) => a + b, 0) / day.scores.length;
+      }
+      return {
+        date: day.date,
+        avgMastery: parseFloat(lastAvg.toFixed(1))
+      };
+    });
+
+    res.json(trends);
+  } catch (error) {
+    console.error('Error fetching trends:', error);
+    res.status(500).json({ error: `Failed to fetch trends: ${error.message}` });
+  }
+});
+
+/**
+ * GET /api/dashboard/:ngoId/subjects
+ * Subject-wise performance breakdown
+ */
+router.get('/:ngoId/subjects', authenticate, authorize(['ngo_admin']), async (req, res) => {
+  try {
+    const { ngoId } = req.params;
+    const students = await Student.find({ ngoId });
+    const subjectScores = {};
+
+    students.forEach(student => {
+      (student.assessmentHistory || []).forEach(test => {
+        const subject = test.subject || 'Unknown';
+        if (!subjectScores[subject]) {
+          subjectScores[subject] = [];
+        }
+        subjectScores[subject].push(test.score || 0);
+      });
+    });
+
+    const subjects = Object.entries(subjectScores).map(([subject, scores]) => ({
+      subject,
+      avgScore: parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)),
+      totalTests: scores.length
+    }));
+
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    res.status(500).json({ error: `Failed to fetch subjects: ${error.message}` });
+  }
+});
+
+/**
+ * GET /api/dashboard/:ngoId/at-risk
+ * At-risk students list
+ */
+router.get('/:ngoId/at-risk', authenticate, authorize(['ngo_admin']), async (req, res) => {
+  try {
+    const { ngoId } = req.params;
+    const students = await Student.find({ ngoId });
+
+    const atRisk = students
+      .map(student => {
+        const history = student.assessmentHistory || [];
+        const avgScore = history.length > 0
+          ? history.reduce((sum, a) => sum + (a.score || 0), 0) / history.length
+          : 0;
+        return {
+          id: student._id,
+          name: student.name,
+          grade: student.grade,
+          masteryScore: parseFloat(avgScore.toFixed(1)),
+          testsCompleted: history.length,
+          weakAreas: student.weakAreas || []
+        };
+      })
+      .filter(s => s.masteryScore < 60)
+      .sort((a, b) => a.masteryScore - b.masteryScore);
+
+    res.json(atRisk);
+  } catch (error) {
+    console.error('Error fetching at-risk:', error);
+    res.status(500).json({ error: `Failed to fetch at-risk: ${error.message}` });
+  }
+});
+
+/**
+ * GET /api/dashboard/:ngoId/students
+ * Student performance list
+ */
+router.get('/:ngoId/students', authenticate, authorize(['ngo_admin']), async (req, res) => {
+  try {
+    const { ngoId } = req.params;
+    const students = await Student.find({ ngoId });
+
+    const enriched = students.map(student => {
+      const history = student.assessmentHistory || [];
+      const avgScore = history.length > 0
+        ? (history.reduce((sum, a) => sum + (a.score || 0), 0) / history.length).toFixed(1)
         : 0;
 
       return {
@@ -98,240 +199,78 @@ router.get('/students', authenticate, authorize(['ngo_admin']), async (req, res)
         name: student.name,
         grade: student.grade,
         averageScore: parseFloat(avgScore),
-        testsCompleted: student.assessmentHistory?.length || 0,
+        testsCompleted: history.length,
         badges: (student.badges || []).length,
-        currentMentor: student.currentMentorId ? 'Assigned' : 'Not Assigned',
         enrolledAt: student.enrolledAt
       };
     });
 
-    // Sort
-    if (sortBy === 'score-desc') {
-      enrichedStudents.sort((a, b) => b.averageScore - a.averageScore);
-    } else if (sortBy === 'score-asc') {
-      enrichedStudents.sort((a, b) => a.averageScore - b.averageScore);
-    } else {
-      enrichedStudents.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    res.json({
-      success: true,
-      students: enrichedStudents,
-      total: enrichedStudents.length
-    });
+    res.json({ students: enriched, total: enriched.length });
   } catch (error) {
     console.error('Error fetching students:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch students: ${error.message}`
-    });
+    res.status(500).json({ error: `Failed to fetch students: ${error.message}` });
   }
 });
 
 /**
- * GET /api/dashboard/volunteers
- * Volunteer effectiveness metrics
+ * GET /api/dashboard/:ngoId/volunteers
  */
-router.get('/volunteers', authenticate, authorize(['ngo_admin']), async (req, res) => {
+router.get('/:ngoId/volunteers', authenticate, authorize(['ngo_admin']), async (req, res) => {
   try {
-    const { ngoId } = req.query;
+    const { ngoId } = req.params;
+    const volunteers = await Volunteer.find({ ngoId, approved: true });
 
-    const volunteers = await Volunteer.find({ ngoId: ngoId, approved: true });
+    const enriched = volunteers.map(v => ({
+      id: v._id,
+      name: v.name,
+      email: v.email,
+      subjects: v.subjects,
+      languages: v.languages,
+      createdAt: v.createdAt
+    }));
 
-    const enrichedVolunteers = volunteers.map(vol => {
-      const subjectList = Array.isArray(vol.subjects) ? vol.subjects.join(', ') : '';
-      const gradeList = Array.isArray(vol.gradeBand) ? vol.gradeBand.join(', ') : '';
-
-      return {
-        id: vol._id,
-        name: vol.name,
-        email: vol.email,
-        subjects: subjectList,
-        grades: gradeList,
-        duration: vol.duration,
-        languages: vol.languages,
-        qualifications: vol.qualifications,
-        approved: vol.approved,
-        createdAt: vol.createdAt
-      };
-    });
-
-    res.json({
-      success: true,
-      volunteers: enrichedVolunteers,
-      total: enrichedVolunteers.length
-    });
+    res.json({ volunteers: enriched, total: enriched.length });
   } catch (error) {
-    console.error('Error fetching volunteers:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch volunteers: ${error.message}`
-    });
+    res.status(500).json({ error: `Failed to fetch volunteers: ${error.message}` });
   }
 });
 
 /**
- * GET /api/dashboard/mentors
- * Mentor load and student progress
+ * GET /api/dashboard/:ngoId/mentors
  */
-router.get('/mentors', authenticate, authorize(['ngo_admin']), async (req, res) => {
+router.get('/:ngoId/mentors', authenticate, authorize(['ngo_admin']), async (req, res) => {
   try {
-    const { ngoId } = req.query;
+    const { ngoId } = req.params;
+    const mentors = await Mentor.find({ ngoId, approved: true });
 
-    const mentors = await Mentor.find({ ngoId: ngoId, approved: true });
+    const enriched = mentors.map(m => ({
+      id: m._id,
+      name: m.name,
+      email: m.email,
+      expertSubjects: m.expertSubjects,
+      studentsAssigned: m.currentStudentCount || 0,
+      maxStudents: m.maxStudents,
+      createdAt: m.createdAt
+    }));
 
-    const enrichedMentors = mentors.map(mentor => {
-      const utilization = mentor.maxStudents > 0
-        ? Math.round((mentor.currentStudentCount / mentor.maxStudents) * 100)
-        : 0;
-
-      return {
-        id: mentor._id,
-        name: mentor.name,
-        email: mentor.email,
-        expertSubjects: mentor.expertSubjects,
-        studentsAssigned: mentor.currentStudentCount || 0,
-        maxStudents: mentor.maxStudents,
-        utilizationPercent: utilization,
-        yearsExperience: mentor.yearsExperience,
-        languages: mentor.languagesSpoken,
-        createdAt: mentor.createdAt
-      };
-    });
-
-    res.json({
-      success: true,
-      mentors: enrichedMentors,
-      total: enrichedMentors.length
-    });
+    res.json({ mentors: enriched, total: enriched.length });
   } catch (error) {
-    console.error('Error fetching mentors:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch mentors: ${error.message}`
-    });
+    res.status(500).json({ error: `Failed to fetch mentors: ${error.message}` });
   }
 });
 
 /**
- * GET /api/dashboard/subjects
- * Subject-wise performance breakdown
+ * GET /api/dashboard/:ngoId/test-results
  */
-router.get('/subjects', authenticate, authorize(['ngo_admin']), async (req, res) => {
+router.get('/:ngoId/test-results', authenticate, authorize(['ngo_admin']), async (req, res) => {
   try {
-    const { ngoId } = req.query;
-
-    const students = await Student.find({ ngoId: ngoId });
-    const subjectScores = {};
-
-    students.forEach(student => {
-      (student.assessmentHistory || []).forEach(test => {
-        if (!subjectScores[test.subject]) {
-          subjectScores[test.subject] = {
-            scores: [],
-            count: 0
-          };
-        }
-        subjectScores[test.subject].scores.push(test.score);
-        subjectScores[test.subject].count++;
-      });
-    });
-
-    const subjectBreakdown = Object.entries(subjectScores).map(([subject, data]) => {
-      const avgScore = (data.scores.reduce((a, b) => a + b, 0) / data.scores.length).toFixed(2);
-      const maxScore = Math.max(...data.scores);
-      const minScore = Math.min(...data.scores);
-
-      return {
-        subject: subject,
-        averageScore: parseFloat(avgScore),
-        maxScore: maxScore,
-        minScore: minScore,
-        totalTests: data.count,
-        studentsTested: data.count // Approximate
-      };
-    });
-
-    res.json({
-      success: true,
-      subjects: subjectBreakdown,
-      total: subjectBreakdown.length
-    });
-  } catch (error) {
-    console.error('Error fetching subjects:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch subjects: ${error.message}`
-    });
-  }
-});
-
-/**
- * GET /api/dashboard/at-risk
- * At-risk students list
- */
-router.get('/at-risk', authenticate, authorize(['ngo_admin']), async (req, res) => {
-  try {
-    const { ngoId } = req.query;
-
-    const students = await Student.find({ ngoId: ngoId }).populate('currentMentorId');
-
-    const atRiskStudents = students
-      .filter(student => {
-        if (!student.assessmentHistory || student.assessmentHistory.length === 0) return true;
-        const avgScore = student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length;
-        return avgScore < 60;
-      })
-      .map(student => {
-        const avgScore = student.assessmentHistory?.length > 0
-          ? (student.assessmentHistory.reduce((sum, a) => sum + a.score, 0) / student.assessmentHistory.length).toFixed(2)
-          : 'No tests';
-
-        const recentTest = student.assessmentHistory?.[student.assessmentHistory.length - 1];
-
-        return {
-          id: student._id,
-          name: student.name,
-          grade: student.grade,
-          averageScore: typeof avgScore === 'string' ? avgScore : parseFloat(avgScore),
-          testsCompleted: student.assessmentHistory?.length || 0,
-          lastTestScore: recentTest?.score || null,
-          lastTestDate: recentTest?.date || null,
-          weakAreas: student.weakAreas,
-          mentorAssigned: student.currentMentorId ? student.currentMentorId.name : 'Not Assigned',
-          action: 'Assign Mentor / Schedule Session'
-        };
-      });
-
-    res.json({
-      success: true,
-      atRiskStudents: atRiskStudents,
-      total: atRiskStudents.length
-    });
-  } catch (error) {
-    console.error('Error fetching at-risk students:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch at-risk students: ${error.message}`
-    });
-  }
-});
-
-/**
- * GET /api/dashboard/test-results
- * Generalized test results across all students
- */
-router.get('/test-results', authenticate, authorize(['ngo_admin']), async (req, res) => {
-  try {
-    const { ngoId } = req.query;
-
-    const students = await Student.find({ ngoId: ngoId });
+    const { ngoId } = req.params;
+    const students = await Student.find({ ngoId });
     const allTests = [];
 
     students.forEach(student => {
       (student.assessmentHistory || []).forEach(test => {
         allTests.push({
-          studentId: student._id,
           studentName: student.name,
           subject: test.subject,
           topic: test.topic,
@@ -341,72 +280,10 @@ router.get('/test-results', authenticate, authorize(['ngo_admin']), async (req, 
       });
     });
 
-    // Sort by most recent
     allTests.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    res.json({
-      success: true,
-      testResults: allTests.slice(0, 100), // Last 100 tests
-      total: allTests.length
-    });
+    res.json({ testResults: allTests.slice(0, 100), total: allTests.length });
   } catch (error) {
-    console.error('Error fetching test results:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch test results: ${error.message}`
-    });
-  }
-});
-
-/**
- * GET /api/dashboard/trends
- * Progress trends over time
- */
-router.get('/trends', authenticate, authorize(['ngo_admin']), async (req, res) => {
-  try {
-    const { ngoId } = req.query;
-
-    const students = await Student.find({ ngoId: ngoId });
-
-    // Aggregate scores by week
-    const weeklyTrends = {};
-    students.forEach(student => {
-      (student.assessmentHistory || []).forEach(test => {
-        const testDate = new Date(test.date);
-        const weekStart = new Date(testDate);
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week
-        const weekKey = weekStart.toISOString().split('T')[0];
-
-        if (!weeklyTrends[weekKey]) {
-          weeklyTrends[weekKey] = {
-            scores: [],
-            count: 0
-          };
-        }
-        weeklyTrends[weekKey].scores.push(test.score);
-        weeklyTrends[weekKey].count++;
-      });
-    });
-
-    const trends = Object.entries(weeklyTrends)
-      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-      .map(([week, data]) => ({
-        week: week,
-        averageScore: (data.scores.reduce((a, b) => a + b, 0) / data.scores.length).toFixed(2),
-        testsCompleted: data.count
-      }));
-
-    res.json({
-      success: true,
-      trends: trends,
-      total: trends.length
-    });
-  } catch (error) {
-    console.error('Error fetching trends:', error);
-    res.status(500).json({
-      success: false,
-      error: `Failed to fetch trends: ${error.message}`
-    });
+    res.status(500).json({ error: `Failed to fetch test results: ${error.message}` });
   }
 });
 

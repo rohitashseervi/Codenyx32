@@ -44,9 +44,9 @@ async function calculateMatchScore(mentor, student) {
 
   // 5. Behavioral Fit (10%)
   let behavioralScore = 50;
-  if (mentor.behavioralProfile && student.learningNeed) {
+  if (mentor.behavioralProfile) {
     const mentorPatience = mentor.behavioralProfile.patience || 5;
-    const studentNeeds = student.learningNeed;
+    const studentNeeds = student.weakAreas?.length > 3 ? 'high-support' : student.weakAreas?.length > 1 ? 'moderate-support' : 'independent';
     if ((studentNeeds === 'high-support' && mentorPatience >= 4) ||
         (studentNeeds === 'moderate-support' && mentorPatience >= 3) ||
         (studentNeeds === 'independent') ||

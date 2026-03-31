@@ -11,6 +11,7 @@ const NGOAdminSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'NGO'
   },
+  ngoName: String,
   role: {
     type: String,
     enum: ['admin', 'coordinator', 'analyst'],

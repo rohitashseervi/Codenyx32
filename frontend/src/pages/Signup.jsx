@@ -1,28 +1,34 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { api } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import { ArrowRight, ArrowLeft, Check } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const Signup = () => {
   const navigate = useNavigate()
-  const { user, setRole, setProfile, refreshProfile } = useAuth()
+  const { register, isAuthenticated, role: authRole } = useAuth()
   const [step, setStep] = useState(1)
   const [selectedRole, setSelectedRole] = useState('')
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({})
+  const [showPassword, setShowPassword] = useState(false)
+  const [credentials, setCredentials] = useState({
+    email: '',
+    password: '',
+    displayName: '',
+  })
+  const [profileData, setProfileData] = useState({})
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login', { replace: true })
+    if (isAuthenticated && authRole) {
+      const dashboardRole = authRole === 'ngo_admin' ? 'ngo' : authRole
+      navigate(`/${dashboardRole}/dashboard`, { replace: true })
     }
-  }, [user, navigate])
+  }, [isAuthenticated, authRole, navigate])
 
   const roles = [
     {
-      id: 'ngo',
+      id: 'ngo_admin',
       name: 'NGO Admin',
       description: 'Manage students, volunteers, and track educational outcomes',
       icon: '🏢',
@@ -52,24 +58,34 @@ const Signup = () => {
     setStep(2)
   }
 
-  const getRoleFormFields = () => {
-    const baseFields = [
-      { name: 'name', label: 'Full Name', type: 'text', required: true },
-      { name: 'email', label: 'Email', type: 'email', required: false, disabled: true },
-    ]
+  const handleCredentialChange = (e) => {
+    setCredentials((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
 
+  const handleProfileChange = (e) => {
+    setProfileData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleCredentialsNext = (e) => {
+    e.preventDefault()
+    if (!credentials.email || !credentials.password || !credentials.displayName) {
+      toast.error('Please fill in all fields')
+      return
+    }
+    if (credentials.password.length < 4) {
+      toast.error('Password must be at least 4 characters')
+      return
+    }
+    setStep(3)
+  }
+
+  const getRoleFormFields = () => {
     const roleSpecificFields = {
-      ngo: [
+      ngo_admin: [
         { name: 'organizationName', label: 'Organization Name', type: 'text', required: true },
         { name: 'registrationNumber', label: 'Registration/License Number', type: 'text', required: true },
         { name: 'location', label: 'Location/City', type: 'text', required: true },
         { name: 'studentsCount', label: 'Number of Students', type: 'number', required: false },
-        {
-          name: 'operatingYears',
-          label: 'Years in Operation',
-          type: 'number',
-          required: false,
-        },
       ],
       volunteer: [
         { name: 'expertise', label: 'Area of Expertise', type: 'text', required: true },
@@ -81,62 +97,36 @@ const Signup = () => {
         { name: 'expertise', label: 'Area of Expertise', type: 'text', required: true },
         { name: 'experience', label: 'Years of Experience', type: 'number', required: false },
         { name: 'qualifications', label: 'Educational Background', type: 'textarea', required: false },
-        { name: 'availability', label: 'Weekly Availability (hours)', type: 'number', required: false },
       ],
       student: [
-        { name: 'grade', label: 'Current Grade/Level', type: 'text', required: true },
+        { name: 'grade', label: 'Current Grade (1-5)', type: 'number', required: true },
         { name: 'school', label: 'School Name', type: 'text', required: false },
-        { name: 'focusAreas', label: 'Areas You Want to Focus On', type: 'textarea', required: false },
+        { name: 'language', label: 'Preferred Language', type: 'text', required: false },
       ],
     }
-
-    return [...baseFields, ...(roleSpecificFields[selectedRole] || [])]
-  }
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    return roleSpecificFields[selectedRole] || []
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!selectedRole || !user) {
-      toast.error('Please complete all steps')
-      return
-    }
-
     try {
       setLoading(true)
 
       const payload = {
-        email: user.email,
-        firebaseUid: user.uid,
+        email: credentials.email,
+        password: credentials.password,
+        displayName: credentials.displayName,
         role: selectedRole,
-        profile: {
-          name: formData.name || user.displayName,
-          ...formData,
-        },
+        profileData: profileData,
       }
 
-      const response = await api.auth.register(payload)
-
-      // Update auth context
-      setRole(selectedRole)
-      setProfile(response.data.profile)
-
-      toast.success('Account created successfully!')
-      navigate(`/${selectedRole}/dashboard`, { replace: true })
+      const result = await register(payload)
+      const dashboardRole = result.role === 'ngo_admin' ? 'ngo' : result.role
+      navigate(`/${dashboardRole}/dashboard`, { replace: true })
     } catch (error) {
       console.error('Signup error:', error)
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message)
-      } else {
-        toast.error('Failed to create account. Please try again.')
-      }
+      // Error toast is handled in AuthContext
     } finally {
       setLoading(false)
     }
@@ -155,7 +145,10 @@ const Signup = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h1>
-          <p className="text-gray-600">Step {step} of 3 - Choose your role</p>
+          <p className="text-gray-600">
+            Step {step} of 3 -{' '}
+            {step === 1 ? 'Choose your role' : step === 2 ? 'Your credentials' : 'Profile details'}
+          </p>
         </div>
 
         {/* Progress bar */}
@@ -194,43 +187,136 @@ const Signup = () => {
           </div>
         )}
 
-        {/* Step 2: Fill Details */}
+        {/* Step 2: Email & Password */}
         {step === 2 && (
+          <form onSubmit={handleCredentialsNext} className="bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Account Credentials</h2>
+
+            <div className="space-y-4 mb-6">
+              {/* Display Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    name="displayName"
+                    value={credentials.displayName}
+                    onChange={handleCredentialChange}
+                    placeholder="Your full name"
+                    required
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={credentials.email}
+                    onChange={handleCredentialChange}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={credentials.password}
+                    onChange={handleCredentialChange}
+                    placeholder="At least 4 characters"
+                    required
+                    minLength={4}
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1)
+                  setSelectedRole('')
+                }}
+                className="flex-1 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg font-medium hover:from-primary-700 hover:to-secondary-700 transition-all flex items-center justify-center gap-2"
+              >
+                Next
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 3: Role-Specific Profile */}
+        {step === 3 && (
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-6">
               {roles.find((r) => r.id === selectedRole)?.name} Details
             </h2>
 
             <div className="space-y-4 mb-6">
-              {fields.map((field) => (
-                <div key={field.name}>
-                  <label className="label">
-                    {field.label}
-                    {field.required && <span className="text-danger-600">*</span>}
-                  </label>
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      name={field.name}
-                      value={formData[field.name] || ''}
-                      onChange={handleInputChange}
-                      disabled={field.disabled}
-                      placeholder={field.label}
-                      rows="3"
-                      className="input-field resize-none"
-                    />
-                  ) : (
-                    <input
-                      type={field.type}
-                      name={field.name}
-                      value={formData[field.name] || (field.disabled ? user?.email : '')}
-                      onChange={handleInputChange}
-                      disabled={field.disabled}
-                      placeholder={field.label}
-                      className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  )}
-                </div>
-              ))}
+              {fields.length === 0 ? (
+                <p className="text-gray-600">No additional details needed. Click Create Account to finish.</p>
+              ) : (
+                fields.map((field) => (
+                  <div key={field.name}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    {field.type === 'textarea' ? (
+                      <textarea
+                        name={field.name}
+                        value={profileData[field.name] || ''}
+                        onChange={handleProfileChange}
+                        placeholder={field.label}
+                        rows="3"
+                        required={field.required}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
+                      />
+                    ) : (
+                      <input
+                        type={field.type}
+                        name={field.name}
+                        value={profileData[field.name] || ''}
+                        onChange={handleProfileChange}
+                        placeholder={field.label}
+                        required={field.required}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                      />
+                    )}
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Terms */}
@@ -243,16 +329,11 @@ const Signup = () => {
               </label>
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => {
-                  setStep(1)
-                  setSelectedRole('')
-                  setFormData({})
-                }}
-                className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                onClick={() => setStep(2)}
+                className="flex-1 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -260,13 +341,10 @@ const Signup = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg font-medium hover:from-primary-700 hover:to-secondary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <>
-                    <LoadingSpinner size="sm" message="" />
-                    Creating...
-                  </>
+                  'Creating...'
                 ) : (
                   <>
                     Create Account
@@ -281,12 +359,9 @@ const Signup = () => {
         {/* Footer */}
         <p className="text-center text-sm text-gray-600 mt-6">
           Already have an account?{' '}
-          <button
-            onClick={() => navigate('/login')}
-            className="text-primary-600 hover:text-primary-700 font-medium"
-          >
+          <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
             Sign In
-          </button>
+          </Link>
         </p>
       </div>
     </div>

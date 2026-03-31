@@ -26,11 +26,11 @@ const Dashboard = () => {
 
         // Fetch students
         const studentsRes = await api.mentor.getStudents()
-        const students = studentsRes.data.students || []
+        const students = studentsRes.data?.students || studentsRes.data?.data || []
 
         // Fetch alerts
         const alertsRes = await api.mentor.getAlerts()
-        const alerts = alertsRes.data.alerts || []
+        const alerts = alertsRes.data?.alerts || alertsRes.data?.data || []
 
         setDashboardData({
           studentsAssigned: students.length,

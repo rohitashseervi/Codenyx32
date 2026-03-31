@@ -18,10 +18,11 @@ const BrowseNGOs = () => {
       try {
         setLoading(true)
         const response = await api.mentor.browseNGOs()
-        setNgos(response.data.ngos || [])
+        const ngoList = response.data?.ngos || response.data?.data || []
+        setNgos(ngoList)
         // Track already joined NGOs
         const joined = new Set(
-          response.data.ngos?.filter((ngo) => ngo.status === 'joined').map((ngo) => ngo.id) || []
+          ngoList.filter((ngo) => ngo.status === 'joined').map((ngo) => ngo._id || ngo.id) || []
         )
         setJoinedNgos(joined)
       } catch (err) {
@@ -116,7 +117,7 @@ const BrowseNGOs = () => {
       {filteredNgos.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredNgos.map((ngo) => (
-            <div key={ngo.id} className="card-hover border-2 border-gray-200">
+            <div key={ngo._id || ngo.id} className="card-hover border-2 border-gray-200">
               {/* NGO Header */}
               <div className="mb-4">
                 <div className="flex justify-between items-start mb-2">
@@ -157,8 +158,8 @@ const BrowseNGOs = () => {
 
               {/* Action Button */}
               <button
-                onClick={() => handleJoinNGO(ngo.id)}
-                disabled={joinedNgos.has(ngo.id) || pendingRequests.has(ngo.id)}
+                onClick={() => handleJoinNGO(ngo._id || ngo.id)}
+                disabled={joinedNgos.has(ngo._id || ngo.id) || pendingRequests.has(ngo._id || ngo.id)}
                 className={`w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors ${
                   joinedNgos.has(ngo.id)
                     ? 'bg-success-100 text-success-700 cursor-default'
@@ -167,9 +168,9 @@ const BrowseNGOs = () => {
                       : 'bg-primary-600 text-white hover:bg-primary-700'
                 }`}
               >
-                {joinedNgos.has(ngo.id)
+                {joinedNgos.has(ngo._id || ngo.id)
                   ? '✓ Joined'
-                  : pendingRequests.has(ngo.id)
+                  : pendingRequests.has(ngo._id || ngo.id)
                     ? 'Sending...'
                     : 'Request to Join'}
               </button>

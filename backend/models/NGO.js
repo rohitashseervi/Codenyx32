@@ -6,6 +6,7 @@ const NGOSchema = new mongoose.Schema({
     required: true
   },
   description: String,
+  registrationNumber: String,
   location: String,
   contactEmail: String,
   contactPhone: String,

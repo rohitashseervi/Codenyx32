@@ -22,6 +22,14 @@ const AssessmentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ClassGroup'
   },
+  ngoId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'NGO'
+  },
+  sessionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ClassSession'
+  },
   status: {
     type: String,
     enum: ['draft', 'published'],

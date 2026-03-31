@@ -6,9 +6,12 @@ const ClassSession = require('../models/ClassSession');
 const Assessment = require('../models/Assessment');
 const Match = require('../models/Match');
 const { authenticate } = require('../middleware/auth');
-const { findMentorMatches, executeMatch } = require('../services/matchingAlgorithm');
-const { checkAndAwardBadges, getStudentBadges } = require('../services/badgeService');
-const { sendMentorAssignment } = require('../services/gmailService');
+
+// Lazy-load optional services to avoid crashes if dependencies are missing
+let findMentorMatches, executeMatch, checkAndAwardBadges, getStudentBadges, sendMentorAssignment;
+try { ({ findMentorMatches, executeMatch } = require('../services/matchingAlgorithm')); } catch(e) { console.warn('matchingAlgorithm service unavailable'); }
+try { ({ checkAndAwardBadges, getStudentBadges } = require('../services/badgeService')); } catch(e) { console.warn('badgeService unavailable'); }
+try { ({ sendMentorAssignment } = require('../services/gmailService')); } catch(e) { console.warn('gmailService unavailable'); }
 
 /**
  * GET /api/student/profile
@@ -282,28 +285,88 @@ router.get('/tests', authenticate, async (req, res) => {
   try {
     const student = await Student.findOne({ userId: req.user.userId });
     if (!student) {
-      return res.status(404).json({
-        success: false,
-        error: 'Student profile not found'
+      return res.json({
+        success: true,
+        tests: [],
+        total: 0,
+        message: 'Student profile not found'
       });
     }
 
-    // Get assessments for student's class
-    const assessments = await Assessment.find({
-      classGroupId: student.classGroupId,
-      status: 'published'
-    }).select('_id title subject topic grade difficulty totalQuestions createdAt');
+    const { status } = req.query;
 
-    // Filter to only tests student hasn't completed
-    const pendingTests = assessments.filter(test => {
-      const submission = test.submissions?.find(sub => sub.studentId.toString() === student._id.toString());
-      return !submission;
-    });
+    // Build query: find tests by classGroupId OR by ngoId matching student's grade
+    const query = { status: 'published' };
+    const orConditions = [];
+
+    if (student.classGroupId) {
+      orConditions.push({ classGroupId: student.classGroupId });
+    }
+    if (student.ngoId) {
+      orConditions.push({ ngoId: student.ngoId });
+    }
+    // Also include tests where grade matches (created via learning path)
+    if (student.grade) {
+      orConditions.push({
+        grade: { $in: [
+          student.grade.toString(),
+          student.grade <= 3 ? '1-3' : '4-5'
+        ]}
+      });
+    }
+
+    if (orConditions.length > 0) {
+      query.$or = orConditions;
+    }
+
+    const assessments = await Assessment.find(query)
+      .select('_id title subject topic grade difficulty totalQuestions createdAt submissions')
+      .sort({ createdAt: -1 });
+
+    // Separate pending and completed
+    const pending = [];
+    const completed = [];
+
+    for (const test of assessments) {
+      const submission = (test.submissions || []).find(
+        sub => sub.studentId && sub.studentId.toString() === student._id.toString()
+      );
+      const testObj = {
+        _id: test._id,
+        title: test.title,
+        subject: test.subject,
+        topic: test.topic,
+        grade: test.grade,
+        difficulty: test.difficulty,
+        totalQuestions: test.totalQuestions,
+        createdAt: test.createdAt
+      };
+
+      if (submission) {
+        testObj.score = submission.score;
+        testObj.submittedAt = submission.submittedAt;
+        testObj.status = 'completed';
+        completed.push(testObj);
+      } else {
+        testObj.status = 'pending';
+        pending.push(testObj);
+      }
+    }
+
+    // Return based on status filter
+    if (status === 'pending') {
+      return res.json({ success: true, tests: pending, total: pending.length });
+    }
+    if (status === 'completed') {
+      return res.json({ success: true, tests: completed, total: completed.length });
+    }
 
     res.json({
       success: true,
-      tests: pendingTests,
-      total: pendingTests.length
+      tests: [...pending, ...completed],
+      pending,
+      completed,
+      total: pending.length + completed.length
     });
   } catch (error) {
     console.error('Error fetching tests:', error);
@@ -398,6 +461,7 @@ router.post('/tests/:testId/submit', authenticate, async (req, res) => {
     // Create submission
     const submission = {
       studentId: student._id,
+      studentName: student.name,
       answers: answers,
       score: score,
       detailedResults: detailedResults,

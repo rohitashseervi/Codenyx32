@@ -21,7 +21,7 @@ const MyStudents = () => {
       try {
         setLoading(true)
         const response = await api.mentor.getStudents()
-        setStudents(response.data.students || [])
+        setStudents(response.data?.students || response.data?.data || [])
       } catch (err) {
         console.error('Failed to fetch students:', err)
         setError('Failed to load students')

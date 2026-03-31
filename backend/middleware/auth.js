@@ -1,9 +1,9 @@
-const admin = require('firebase-admin');
+const crypto = require('crypto');
 const User = require('../models/User');
 
 /**
  * Authentication middleware
- * Verifies Firebase token and attaches user to request
+ * Verifies token and attaches user to request
  */
 async function authenticate(req, res, next) {
   try {
@@ -18,34 +18,33 @@ async function authenticate(req, res, next) {
 
     const token = authHeader.substring(7);
 
-    // Verify Firebase token
-    let decodedToken;
+    // Decode and verify token
+    let payload;
     try {
-      decodedToken = await admin.auth().verifyIdToken(token);
-    } catch (authError) {
+      const [data, signature] = token.split('.');
+      const secret = process.env.JWT_SECRET || 'gapzero-secret-key-2024';
+      const expectedSig = crypto.createHmac('sha256', secret).update(data).digest('hex');
+
+      if (signature !== expectedSig) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid token'
+        });
+      }
+
+      payload = JSON.parse(Buffer.from(data, 'base64').toString());
+    } catch (decodeErr) {
       return res.status(401).json({
         success: false,
         error: 'Invalid or expired token'
       });
     }
 
-    // Get user from database
-    const user = await User.findOne({ uid: decodedToken.uid });
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
     // Attach user info to request
     req.user = {
-      userId: user._id,
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role
+      userId: payload.userId,
+      email: payload.email,
+      role: payload.role
     };
 
     next();

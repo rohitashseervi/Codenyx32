@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, ArrowLeft, School, Phone, Mail, Globe, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api } from '../../services/api';
+import axiosInstance, { api } from '../../services/api';
 
 export default function EnrollStudent() {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ export default function EnrollStudent() {
 
   const fetchClassGroups = async () => {
     try {
-      const res = await api.get('/ngo/class-groups');
+      const res = await axiosInstance.get('/ngo/class-groups');
       setClassGroups(res.data || []);
     } catch (err) {
       // Use empty array if no groups exist yet
@@ -72,7 +72,7 @@ export default function EnrollStudent() {
         takeBaseline: form.takeBaseline
       };
 
-      await api.post('/ngo/students', payload);
+      await axiosInstance.post('/ngo/students', payload);
       toast.success(`${form.name} enrolled successfully!`);
 
       if (form.takeBaseline) {

@@ -9,8 +9,8 @@ import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
 
 const NGODashboard = () => {
-  const { profile } = useAuth()
-  const ngoId = profile?.ngoId
+  const { profile, user } = useAuth()
+  const ngoId = profile?.ngoId || profile?._id
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [dashboardData, setDashboardData] = useState(null)
@@ -19,18 +19,24 @@ const NGODashboard = () => {
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
   useEffect(() => {
-    if (!ngoId) return
+    if (!ngoId) {
+      setLoading(false)
+      setError('No NGO linked to your account. Please contact support.')
+      return
+    }
 
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        // Fetch overview data
-        const overviewResponse = await api.dashboard.overview(ngoId)
-        const trendsResponse = await api.dashboard.trends(ngoId, { days: 30 })
-        const subjectsResponse = await api.dashboard.subjects(ngoId)
-        const atRiskResponse = await api.dashboard.atRisk(ngoId)
+        // Fetch all dashboard data in parallel
+        const [overviewResponse, trendsResponse, subjectsResponse, atRiskResponse] = await Promise.all([
+          api.dashboard.overview(ngoId),
+          api.dashboard.trends(ngoId, { days: 30 }),
+          api.dashboard.subjects(ngoId),
+          api.dashboard.atRisk(ngoId),
+        ])
 
         setDashboardData({
           overview: overviewResponse.data,

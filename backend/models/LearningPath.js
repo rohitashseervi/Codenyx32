@@ -9,9 +9,9 @@ const LearningPathSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ClassGroup'
   },
-  subject: String,
-  grade: String,
-  commitmentDuration: Number,
+  subject: String, // comma-separated: "Math, English"
+  grade: String,   // grade group: "1-3" or "4-5"
+  commitmentDuration: Number, // weeks
   timeSlots: [{
     dayOfWeek: String,
     startTime: String,
@@ -21,23 +21,38 @@ const LearningPathSchema = new mongoose.Schema({
   startDate: Date,
   endDate: Date,
   modules: [{
-    moduleId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'LearningModule'
-    },
     moduleName: String,
-    moduleDuration: Number,
+    subject: String,
+    topic: String,
+    description: String,
+    week: Number,
     scheduledDate: Date,
-    status: String,
-    completedDate: Date
+    status: {
+      type: String,
+      enum: ['current', 'upcoming', 'completed', 'skipped'],
+      default: 'upcoming'
+    },
+    completedDate: Date,
+    sessions: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ClassSession'
+    }],
+    learningOutcomes: [String]
   }],
   totalModules: Number,
   completedModules: {
     type: Number,
     default: 0
   },
-  status: String,
-  createdAt: Date
+  status: {
+    type: String,
+    enum: ['active', 'in_progress', 'completed', 'abandoned'],
+    default: 'active'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 module.exports = mongoose.model('LearningPath', LearningPathSchema);

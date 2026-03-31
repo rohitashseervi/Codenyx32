@@ -25,7 +25,8 @@ const TestResults = () => {
     try {
       setLoading(true)
       const response = await api.volunteer.getTestResults({ limit: 20 })
-      const testList = response.data.data || response.data || []
+      const raw = response.data?.data || response.data?.tests || []
+      const testList = Array.isArray(raw) ? raw : []
       setTests(testList)
 
       if (testList.length > 0) {

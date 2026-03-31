@@ -1,11 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const admin = require('firebase-admin');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const Volunteer = require('../models/Volunteer');
 const Mentor = require('../models/Mentor');
 const NGOAdmin = require('../models/NGOAdmin');
+const NGO = require('../models/NGO');
+const { authenticate } = require('../middleware/auth');
+
+// Simple JWT-like token generation (no external dependency)
+function generateToken(user) {
+  const payload = {
+    userId: user._id.toString(),
+    email: user.email,
+    role: user.role,
+    iat: Date.now()
+  };
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64');
+  const secret = process.env.JWT_SECRET || 'gapzero-secret-key-2024';
+  const signature = crypto.createHmac('sha256', secret).update(data).digest('hex');
+  return `${data}.${signature}`;
+}
 
 /**
  * POST /api/auth/register
@@ -13,17 +29,22 @@ const NGOAdmin = require('../models/NGOAdmin');
  */
 router.post('/register', async (req, res) => {
   try {
-    const { uid, email, displayName, role, profileData } = req.body;
+    const { email, password, displayName, role, profileData } = req.body;
 
-    // Validate required fields
-    if (!uid || !email || !role) {
+    if (!email || !password || !role) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: uid, email, role'
+        error: 'Missing required fields: email, password, role'
       });
     }
 
-    // Validate role
+    if (password.length < 4) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 4 characters'
+      });
+    }
+
     const validRoles = ['student', 'volunteer', 'mentor', 'ngo_admin'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
@@ -33,20 +54,21 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ uid: uid });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        error: 'User already exists'
+        error: 'User with this email already exists'
       });
     }
 
-    // Create base user document
+    // Create user
     const user = new User({
-      uid: uid,
-      email: email,
+      email: email.toLowerCase(),
+      password: password,
       displayName: displayName || email.split('@')[0],
       role: role,
+      uid: email.toLowerCase(),
       createdAt: new Date()
     });
 
@@ -56,73 +78,110 @@ router.post('/register', async (req, res) => {
     let profile = null;
 
     switch (role) {
-      case 'student':
+      case 'student': {
+        const studentGrade = parseInt(profileData?.grade) || 1;
         profile = new Student({
           userId: user._id,
           email: email,
           name: displayName || email.split('@')[0],
-          grade: profileData?.grade,
+          grade: Math.max(1, Math.min(5, studentGrade)),
+          school: profileData?.school || '',
           language: profileData?.language || 'English',
+          ngoId: profileData?.ngoId || null,
           weakAreas: profileData?.weakAreas || [],
           assessmentHistory: [],
           matchHistory: [],
           activityLog: [],
           badges: [],
+          status: 'active',
           createdAt: new Date()
         });
         break;
+      }
 
-      case 'volunteer':
+      case 'volunteer': {
+        // Map form fields: expertise → subjects, qualifications (string) → array
+        const volSubjects = profileData?.subjects
+          || (profileData?.expertise ? profileData.expertise.split(',').map(s => s.trim()) : []);
+        const volQualifications = profileData?.qualifications
+          ? (Array.isArray(profileData.qualifications) ? profileData.qualifications : [profileData.qualifications])
+          : [];
         profile = new Volunteer({
           userId: user._id,
           email: email,
           name: displayName || email.split('@')[0],
-          subjects: profileData?.subjects || [],
-          gradeBand: profileData?.gradeBand || [],
+          subjects: volSubjects,
+          gradeBand: profileData?.gradeBand || ['1', '2', '3', '4', '5'],
           timeSlots: profileData?.timeSlots || [],
-          duration: profileData?.duration || 3,
+          duration: parseInt(profileData?.availability) || profileData?.duration || 3,
           languages: profileData?.languages || ['English'],
           bio: profileData?.bio || '',
-          qualifications: profileData?.qualifications || [],
+          qualifications: volQualifications,
+          approved: false,
           createdAt: new Date()
         });
         break;
+      }
 
-      case 'mentor':
+      case 'mentor': {
+        // Map form fields: expertise → expertSubjects, experience → yearsExperience
+        const mentorSubjects = profileData?.expertSubjects
+          || (profileData?.expertise ? profileData.expertise.split(',').map(s => s.trim()) : []);
         profile = new Mentor({
           userId: user._id,
           email: email,
           name: displayName || email.split('@')[0],
-          expertSubjects: profileData?.expertSubjects || [],
+          expertSubjects: mentorSubjects,
           languagesSpoken: profileData?.languagesSpoken || ['English'],
           maxStudents: profileData?.maxStudents || 5,
           currentStudentCount: 0,
           behavioralProfile: profileData?.behavioralProfile || {},
-          yearsExperience: profileData?.yearsExperience || 0,
+          yearsExperience: parseInt(profileData?.experience) || 0,
+          approved: false,
           createdAt: new Date()
         });
         break;
+      }
 
-      case 'ngo_admin':
+      case 'ngo_admin': {
+        // Auto-create an NGO for this admin
+        const ngo = new NGO({
+          name: profileData?.organizationName || `${displayName || email.split('@')[0]}'s NGO`,
+          description: profileData?.description || 'Education-focused NGO on GapZero',
+          location: profileData?.location || '',
+          contactEmail: email,
+          contactPhone: profileData?.contactPhone || '',
+          registrationNumber: profileData?.registrationNumber || '',
+          admins: [user._id],
+          students: [],
+          createdAt: new Date()
+        });
+        await ngo.save();
+
         profile = new NGOAdmin({
           userId: user._id,
           email: email,
           name: displayName || email.split('@')[0],
-          ngoId: profileData?.ngoId || null,
-          role: profileData?.adminRole || 'coordinator',
+          ngoId: ngo._id,
+          ngoName: ngo.name,
+          role: profileData?.adminRole || 'admin',
           createdAt: new Date()
         });
         break;
+      }
     }
 
     if (profile) {
       await profile.save();
     }
 
+    const token = generateToken(user);
+
     res.status(201).json({
       success: true,
+      token: token,
       user: {
-        uid: user.uid,
+        _id: user._id,
         email: user.email,
         displayName: user.displayName,
         role: user.role,
@@ -141,43 +200,34 @@ router.post('/register', async (req, res) => {
 
 /**
  * POST /api/auth/login
- * Verify Firebase token and return user data
+ * Login with email and password
  */
 router.post('/login', async (req, res) => {
   try {
-    const { token } = req.body;
+    const { email, password } = req.body;
 
-    if (!token) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Firebase token is required'
+        error: 'Email and password are required'
       });
     }
 
-    // Verify Firebase token
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(token);
-    } catch (authError) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid or expired token'
-      });
-    }
-
-    // Find or create user
-    let user = await User.findOne({ uid: decodedToken.uid });
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
-      // Create user if doesn't exist
-      user = new User({
-        uid: decodedToken.uid,
-        email: decodedToken.email,
-        displayName: decodedToken.name || decodedToken.email.split('@')[0],
-        role: 'student', // Default role
-        createdAt: new Date()
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
       });
-      await user.save();
+    }
+
+    // Simple password check
+    if (user.password !== password && !user.validPassword(password)) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
     }
 
     // Fetch role-specific profile
@@ -197,10 +247,13 @@ router.post('/login', async (req, res) => {
         break;
     }
 
+    const token = generateToken(user);
+
     res.json({
       success: true,
+      token: token,
       user: {
-        uid: user.uid,
+        _id: user._id,
         email: user.email,
         displayName: user.displayName,
         role: user.role,
@@ -219,18 +272,10 @@ router.post('/login', async (req, res) => {
 
 /**
  * GET /api/auth/me
- * Get current user profile
+ * Get current user profile (requires auth)
  */
-router.get('/me', async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
-    // Assumes middleware has set req.user
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Not authenticated'
-      });
-    }
-
     const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({
@@ -239,7 +284,6 @@ router.get('/me', async (req, res) => {
       });
     }
 
-    // Fetch role-specific profile
     let profile = null;
     switch (user.role) {
       case 'student':
@@ -259,7 +303,7 @@ router.get('/me', async (req, res) => {
     res.json({
       success: true,
       user: {
-        uid: user.uid,
+        _id: user._id,
         email: user.email,
         displayName: user.displayName,
         role: user.role,
@@ -277,17 +321,10 @@ router.get('/me', async (req, res) => {
 
 /**
  * PUT /api/auth/profile
- * Update user profile
+ * Update user profile (requires auth)
  */
-router.put('/profile', async (req, res) => {
+router.put('/profile', authenticate, async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Not authenticated'
-      });
-    }
-
     const { displayName, profileData } = req.body;
     const user = await User.findById(req.user.userId);
 
@@ -298,13 +335,11 @@ router.put('/profile', async (req, res) => {
       });
     }
 
-    // Update user base info
     if (displayName) {
       user.displayName = displayName;
     }
     await user.save();
 
-    // Update role-specific profile
     let profile = null;
     switch (user.role) {
       case 'student':
@@ -340,7 +375,7 @@ router.put('/profile', async (req, res) => {
     res.json({
       success: true,
       user: {
-        uid: user.uid,
+        _id: user._id,
         email: user.email,
         displayName: user.displayName,
         role: user.role,

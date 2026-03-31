@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 * {
   @apply antialiased;
@@ -38,7 +38,7 @@ body {
 }
 
 .card-hover {
-  @apply card cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+  @apply bg-white rounded-lg shadow-md p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
 }
 
 .input-field {

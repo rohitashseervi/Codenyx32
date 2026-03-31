@@ -16,7 +16,7 @@ const Alerts = () => {
       try {
         setLoading(true)
         const response = await api.mentor.getAlerts()
-        setAlerts(response.data.alerts || [])
+        setAlerts(response.data?.alerts || response.data?.data || [])
       } catch (err) {
         console.error('Failed to fetch alerts:', err)
         setError('Failed to load alerts')

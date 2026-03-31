@@ -1,19 +1,20 @@
 const Assessment = require('../models/Assessment');
 
-// Lazy-load OpenAI only when API key is available
-let openai = null;
-function getOpenAIClient() {
-  if (!process.env.OPENAI_API_KEY) return null;
-  if (!openai) {
+// Lazy-load Gemini only when needed and API key is available
+let geminiModel = null;
+function getGeminiClient() {
+  if (!process.env.GEMINI_API_KEY) return null;
+  if (!geminiModel) {
     try {
-      const OpenAI = require('openai');
-      openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const { GoogleGenerativeAI } = require('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     } catch (err) {
-      console.warn('OpenAI module not available, using fallback question bank');
+      console.warn('Gemini module not available, using fallback question bank');
       return null;
     }
   }
-  return openai;
+  return geminiModel;
 }
 
 // Pre-built fallback question bank
@@ -33,10 +34,22 @@ const questionBank = {
         explanation: '10 - 4 equals 6.'
       },
       {
-        question: 'What is 2 × 3?',
+        question: 'What is 2 x 3?',
         options: ['5', '6', '7', '8'],
         correctAnswer: 'B',
-        explanation: '2 × 3 equals 6.'
+        explanation: '2 x 3 equals 6.'
+      },
+      {
+        question: 'Which number comes after 19?',
+        options: ['18', '20', '21', '17'],
+        correctAnswer: 'B',
+        explanation: '20 comes after 19.'
+      },
+      {
+        question: 'What is 12 divided by 4?',
+        options: ['2', '3', '4', '6'],
+        correctAnswer: 'B',
+        explanation: '12 / 4 = 3.'
       }
     ],
     'medium': [
@@ -50,15 +63,27 @@ const questionBank = {
         question: 'What is 15% of 100?',
         options: ['10', '15', '20', '25'],
         correctAnswer: 'B',
-        explanation: '15% of 100 is (15/100) × 100 = 15.'
+        explanation: '15% of 100 is (15/100) x 100 = 15.'
+      },
+      {
+        question: 'What is the perimeter of a rectangle with length 8 and width 3?',
+        options: ['11', '22', '24', '16'],
+        correctAnswer: 'B',
+        explanation: 'Perimeter = 2(l+w) = 2(8+3) = 22.'
       }
     ],
     'hard': [
       {
-        question: 'What is the area of a circle with radius 5?',
-        options: ['25π', '10π', '50π', '100π'],
+        question: 'What is the area of a triangle with base 10 and height 6?',
+        options: ['30', '60', '16', '20'],
         correctAnswer: 'A',
-        explanation: 'Area of circle = πr² = π(5)² = 25π.'
+        explanation: 'Area = (1/2) x base x height = (1/2) x 10 x 6 = 30.'
+      },
+      {
+        question: 'If a train travels 120 km in 2 hours, what is its speed?',
+        options: ['40 km/h', '60 km/h', '80 km/h', '120 km/h'],
+        correctAnswer: 'B',
+        explanation: 'Speed = distance/time = 120/2 = 60 km/h.'
       }
     ]
   },
@@ -66,7 +91,7 @@ const questionBank = {
     'easy': [
       {
         question: 'Which word is spelled correctly?',
-        options: ['Begining', 'Beginning', 'Begining', 'Begining'],
+        options: ['Begining', 'Beginning', 'Begnning', 'Biginning'],
         correctAnswer: 'B',
         explanation: 'Beginning is the correct spelling.'
       },
@@ -75,6 +100,12 @@ const questionBank = {
         options: ['Sad', 'Angry', 'Tired', 'Sick'],
         correctAnswer: 'A',
         explanation: 'Sad is the opposite of happy.'
+      },
+      {
+        question: 'Which is a noun?',
+        options: ['Run', 'Beautiful', 'Cat', 'Quickly'],
+        correctAnswer: 'C',
+        explanation: 'Cat is a noun (a naming word).'
       }
     ],
     'medium': [
@@ -83,6 +114,12 @@ const questionBank = {
         options: ['She go to school', 'She goes to school', 'She going to school', 'She gone to school'],
         correctAnswer: 'B',
         explanation: 'The correct form is "She goes to school" with proper subject-verb agreement.'
+      },
+      {
+        question: 'What is the plural of "child"?',
+        options: ['Childs', 'Children', 'Childes', 'Childrens'],
+        correctAnswer: 'B',
+        explanation: 'The plural of child is children (irregular plural).'
       }
     ],
     'hard': [
@@ -101,6 +138,12 @@ const questionBank = {
         options: ['O', 'Ox', 'Os', 'Og'],
         correctAnswer: 'A',
         explanation: 'The chemical symbol for Oxygen is O.'
+      },
+      {
+        question: 'Which planet is closest to the Sun?',
+        options: ['Venus', 'Earth', 'Mercury', 'Mars'],
+        correctAnswer: 'C',
+        explanation: 'Mercury is the closest planet to the Sun.'
       }
     ],
     'medium': [
@@ -109,6 +152,12 @@ const questionBank = {
         options: ['Respiration', 'Fermentation', 'Photosynthesis', 'Digestion'],
         correctAnswer: 'C',
         explanation: 'Photosynthesis is the process where plants use sunlight to produce food.'
+      },
+      {
+        question: 'What is the boiling point of water?',
+        options: ['50°C', '100°C', '150°C', '200°C'],
+        correctAnswer: 'B',
+        explanation: 'Water boils at 100°C at standard atmospheric pressure.'
       }
     ],
     'hard': [
@@ -124,11 +173,37 @@ const questionBank = {
         explanation: 'The second law states that entropy in a closed system always increases.'
       }
     ]
+  },
+  'Hindi': {
+    'easy': [
+      {
+        question: 'How many vowels (swar) are there in Hindi?',
+        options: ['10', '11', '12', '13'],
+        correctAnswer: 'D',
+        explanation: 'There are 13 vowels (swar) in Hindi.'
+      }
+    ],
+    'medium': [
+      {
+        question: 'Which is the correct meaning of "Pustak"?',
+        options: ['Pen', 'Book', 'Table', 'Chair'],
+        correctAnswer: 'B',
+        explanation: 'Pustak means Book in Hindi.'
+      }
+    ],
+    'hard': [
+      {
+        question: 'What type of word is "Sundarta"?',
+        options: ['Sangya (Noun)', 'Visheshan (Adjective)', 'Kriya (Verb)', 'Bhav Vachak Sangya (Abstract Noun)'],
+        correctAnswer: 'D',
+        explanation: 'Sundarta is a Bhav Vachak Sangya (Abstract Noun) derived from Sundar.'
+      }
+    ]
   }
 };
 
 /**
- * Generate AI-powered test using OpenAI
+ * Generate AI-powered test using Google Gemini
  * Falls back to question bank if API fails
  */
 async function generateTest(topic, subject, grade, difficulty = 'medium', numQuestions = 20) {
@@ -143,7 +218,6 @@ async function generateTest(topic, subject, grade, difficulty = 'medium', numQue
       difficulty = 'medium';
     }
 
-    // Build prompt for OpenAI
     const gradeLevel = grade.toString();
     const prompt = `Generate exactly ${numQuestions} multiple choice questions for a ${difficulty} level test.
 Subject: ${subject}
@@ -154,7 +228,7 @@ Requirements:
 - Each question must have exactly 4 options labeled A, B, C, D
 - One correct answer per question
 - Include explanations for each answer
-- Questions should be appropriate for grade ${gradeLevel}
+- Questions should be appropriate for grade ${gradeLevel} students in India
 - ${difficulty === 'easy' ? 'Focus on fundamental concepts' : difficulty === 'hard' ? 'Include challenging critical thinking questions' : 'Mix of conceptual and application questions'}
 
 Format your response as a JSON array with this structure:
@@ -167,46 +241,36 @@ Format your response as a JSON array with this structure:
   }
 ]
 
-Return ONLY the JSON array, no other text.`;
+Return ONLY the JSON array, no other text or markdown formatting.`;
 
-    const client = getOpenAIClient();
-    if (!client) {
-      console.log('No OpenAI API key configured, using fallback question bank');
+    const model = getGeminiClient();
+    if (!model) {
+      console.log('No Gemini API key configured, using fallback question bank');
       return fallbackToQuestionBank(topic, subject, difficulty, numQuestions);
     }
 
     try {
-      const response = await client.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert educational assessment designer creating high-quality multiple choice questions.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000
-      });
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      let content = response.text();
 
-      const content = response.choices[0].message.content;
+      // Clean up markdown code blocks if present
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
       const questions = JSON.parse(content);
 
       if (!Array.isArray(questions) || questions.length === 0) {
-        throw new Error('Invalid response format from OpenAI');
+        throw new Error('Invalid response format from Gemini');
       }
 
       return {
         success: true,
-        source: 'OpenAI',
+        source: 'Gemini',
         questions: questions,
         questionCount: questions.length
       };
     } catch (apiError) {
-      console.warn('OpenAI API failed, falling back to question bank:', apiError.message);
+      console.warn('Gemini API failed, falling back to question bank:', apiError.message);
       return fallbackToQuestionBank(topic, subject, difficulty, numQuestions);
     }
   } catch (error) {
@@ -216,13 +280,12 @@ Return ONLY the JSON array, no other text.`;
 }
 
 /**
- * Fallback function when OpenAI API fails
+ * Fallback function when Gemini API fails
  */
 function fallbackToQuestionBank(topic, subject, difficulty, numQuestions) {
   const subjectQuestions = questionBank[subject]?.[difficulty] || [];
 
   if (subjectQuestions.length === 0) {
-    // Return generic questions if subject not found
     const genericQuestions = generateGenericQuestions(topic, numQuestions);
     return {
       success: true,
@@ -276,14 +339,12 @@ function generateGenericQuestions(topic, numQuestions) {
  */
 async function createAssessment(topic, subject, grade, difficulty, numQuestions, volunteerId, classGroupId) {
   try {
-    // Generate questions
     const testData = await generateTest(topic, subject, grade, difficulty, numQuestions);
 
     if (!testData.success || !testData.questions || testData.questions.length === 0) {
       throw new Error('Failed to generate test questions');
     }
 
-    // Create Assessment document
     const assessment = new Assessment({
       title: `${subject} - ${topic}`,
       subject: subject,

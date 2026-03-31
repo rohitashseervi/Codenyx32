@@ -38,6 +38,10 @@ import MentorAlerts from './pages/mentor/Alerts'
 import MentorSchedule from './pages/mentor/Schedule'
 import MentorBrowseNGOs from './pages/mentor/BrowseNGOs'
 import MentorProfile from './pages/mentor/Profile'
+import MentorNotes from './pages/mentor/Notes'
+
+// Common Pages
+import CommonSettings from './pages/common/Settings'
 
 // Student Pages
 import StudentDashboard from './pages/student/Dashboard'
@@ -122,6 +126,7 @@ function App() {
                 <Route path="students" element={<VolunteerMyStudents />} />
                 <Route path="browse-ngos" element={<VolunteerBrowseNGOs />} />
                 <Route path="profile" element={<VolunteerProfile />} />
+                <Route path="settings" element={<CommonSettings />} />
                 <Route path="*" element={<Navigate to="/volunteer/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
@@ -140,7 +145,9 @@ function App() {
                 <Route path="alerts" element={<MentorAlerts />} />
                 <Route path="schedule" element={<MentorSchedule />} />
                 <Route path="browse-ngos" element={<MentorBrowseNGOs />} />
+                <Route path="notes" element={<MentorNotes />} />
                 <Route path="profile" element={<MentorProfile />} />
+                <Route path="settings" element={<CommonSettings />} />
                 <Route path="*" element={<Navigate to="/mentor/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>
@@ -160,6 +167,7 @@ function App() {
                 <Route path="tests/:testId/take" element={<StudentTakeTest />} />
                 <Route path="progress" element={<StudentProgress />} />
                 <Route path="scorecard/:testId" element={<StudentScorecard />} />
+                <Route path="settings" element={<CommonSettings />} />
                 <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
               </Routes>
             </ProtectedRoute>

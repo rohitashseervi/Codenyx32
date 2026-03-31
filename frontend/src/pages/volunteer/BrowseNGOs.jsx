@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../services/api'
-import { Search, MapPin, BookOpen, Users, MapPinIcon, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, MapPin, BookOpen, Users, ChevronDown, ChevronUp } from 'lucide-react'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import toast from 'react-hot-toast'
 
@@ -329,7 +329,7 @@ const BrowseNGOs = () => {
         </div>
       ) : (
         <div className="text-center py-12">
-          <MapPinIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-600">No NGOs found matching your criteria</p>
         </div>
       )}

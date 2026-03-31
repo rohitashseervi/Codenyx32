@@ -1,6 +1,5 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const admin = require('firebase-admin');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
@@ -15,20 +14,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Firebase Admin Initialization
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL
-  });
-}
-
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gapzero', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gapzero')
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.error('MongoDB connection error:', err));
 
@@ -49,6 +36,7 @@ const mentorRoutes = require('./routes/mentor');
 const studentRoutes = require('./routes/student');
 const assessmentRoutes = require('./routes/assessment');
 const dashboardRoutes = require('./routes/dashboard');
+const learningPathRoutes = require('./routes/learningPath');
 
 // Register routes
 app.use('/api/auth', authRoutes);
@@ -58,6 +46,7 @@ app.use('/api/mentor', mentorRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/test', assessmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/learning-path', learningPathRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -24,7 +24,8 @@ const Dashboard = () => {
         api.volunteer.getSessions({ status: 'all', limit: 10 }),
       ])
 
-      const allSessions = sessionsRes.data.data || sessionsRes.data || []
+      const raw = sessionsRes.data?.data || sessionsRes.data?.sessions || []
+      const allSessions = Array.isArray(raw) ? raw : []
       setSessions(allSessions)
 
       // Get upcoming sessions (next 7 days)

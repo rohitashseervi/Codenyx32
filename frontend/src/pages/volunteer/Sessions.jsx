@@ -19,7 +19,8 @@ const Sessions = () => {
     try {
       setLoading(true)
       const response = await api.volunteer.getSessions({ status: filter })
-      setSessions(response.data.data || response.data || [])
+      const data = response.data?.data || response.data?.sessions || []
+      setSessions(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Failed to fetch sessions:', error)
       toast.error('Failed to load sessions')
